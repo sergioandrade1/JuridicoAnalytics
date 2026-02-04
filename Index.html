@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegalAnalytics - Dashboard Pro V3</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Configurações -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .nav-item.active { background-color: #ede9fe; color: #4f46e5; font-weight: 600; border-right: 3px solid #4f46e5; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hover-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        
+        /* Loading Overlay */
+        #loading-overlay { backdrop-filter: blur(2px); }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden bg-[#f3f4f6]">
+
+    <!-- VIEW 1: UPLOAD -->
+    <div id="view-upload" class="flex-1 flex flex-col items-center justify-center p-4 fade-in bg-white absolute inset-0 z-50">
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary-100 text-primary-600 mb-6 shadow-sm">
+                <i class="fa-solid fa-scale-balanced text-4xl"></i>
+            </div>
+            <h1 class="text-4xl font-bold text-slate-800 tracking-tight">LegalAnalytics V3</h1>
+            <p class="text-slate-500 mt-3 text-lg">Sistema Inteligente de Análise Jurídica</p>
+        </div>
+
+        <div id="drop-zone" class="w-full max-w-2xl bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300 p-16 text-center cursor-pointer transition-all duration-300 hover:border-primary-500 hover:bg-primary-50 group">
+            <input type="file" id="fileInput" class="hidden" accept=".csv">
+            <div class="pointer-events-none group-hover:scale-105 transition-transform">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm text-primary-500">
+                    <i class="fa-solid fa-file-csv text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-slate-700">Carregar Planilha CSV</h3>
+                <p class="text-slate-400 mt-2">Compatível com CSV separado por vírgula (,) ou ponto e vírgula (;)</p>
+                <div class="mt-4 text-xs text-slate-400 bg-slate-100 py-2 px-4 rounded-full inline-block">
+                    Colunas Ideais: Responsáveis, Cliente, Status, Peso, Tarefa
+                </div>
+            </div>
+        </div>
+
+        <button onclick="loadDemoData()" class="mt-8 text-sm text-slate-500 hover:text-primary-600 font-medium transition-colors">
+            <i class="fa-solid fa-database mr-2"></i>Gerar dados de teste (Layout Brasileiro)
+        </button>
+        
+        <div id="upload-error" class="hidden mt-6 p-4 bg-red-50 text-red-600 rounded-lg text-sm max-w-xl text-center border border-red-100"></div>
+    </div>
+
+    <!-- VIEW 2: DASHBOARD -->
+    <div id="view-dashboard" class="hidden flex h-full w-full">
+        <!-- SIDEBAR -->
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm flex-shrink-0">
+            <div class="h-16 flex items-center px-6 border-b border-slate-100">
+                <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white mr-3">
+                    <i class="fa-solid fa-scale-balanced text-sm"></i>
+                </div>
+                <span class="font-bold text-slate-800 text-lg">Analytics Pro</span>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+                <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Navegação</p>
+                <button onclick="switchTab('overview')" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-chart-pie w-5 text-center"></i> Visão Geral</button>
+                <button onclick="switchTab('lawyers')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-gavel w-5 text-center"></i> Por Advogado</button>
+                <button onclick="switchTab('clients')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-building w-5 text-center"></i> Por Cliente</button>
+                <button onclick="switchTab('tasks')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-list-check w-5 text-center"></i> Tarefas</button>
+                <button onclick="switchTab('weight')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-scale-unbalanced w-5 text-center"></i> Carga & Peso</button>
+                <button onclick="switchTab('debug')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-bug w-5 text-center"></i> Ver Dados (Debug)</button>
+            </div>
+
+            <div class="p-4 m-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-xs font-semibold text-slate-700">Dados Carregados</span>
+                </div>
+                <p class="text-[10px] text-slate-400">Linhas Processadas:</p>
+                <p class="text-xs font-medium text-slate-600" id="sidebar-total">0</p>
+                <button onclick="resetApp()" class="mt-3 w-full py-1.5 text-xs text-slate-500 border border-slate-200 rounded hover:bg-white hover:text-red-500 transition-colors"><i class="fa-solid fa-rotate-left mr-1"></i> Novo Arquivo</button>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="flex-1 flex flex-col min-w-0 bg-[#f8fafc]">
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
+                <div class="flex-1 max-w-xl">
+                    <h2 class="text-lg font-semibold text-slate-700" id="header-title">Visão Geral</h2>
+                </div>
+                <div class="flex items-center gap-4 ml-4">
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400">Usuário</p>
+                        <p class="text-sm font-semibold text-slate-700">Administrador</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-sm border border-primary-200">AD</div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-auto p-8 custom-scrollbar relative">
+                
+                <!-- TAB OVERVIEW -->
+                <div id="tab-overview" class="tab-content fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl"><i class="fa-solid fa-folder-open"></i></div>
+                                <div><p class="text-xs font-bold text-slate-400 uppercase">Total Processos</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-total">0</h3></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl"><i class="fa-solid fa-user-tie"></i></div>
+                                <div><p class="text-xs font-bold text-slate-400 uppercase">Advogados Ativos</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-lawyers-count">0</h3></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-xl"><i class="fa-solid fa-briefcase"></i></div>
+                                <div><p class="text-xs font-bold text-slate-400 uppercase">Carteira de Clientes</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-clients-count">0</h3></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center text-xl"><i class="fa-solid fa-weight-hanging"></i></div>
+                                <div><p class="text-xs font-bold text-slate-400 uppercase">Complexidade Média</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-avg-weight">0.0</h3></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-up-right-dots text-red-500"></i> Maior Carga (Média Peso)</h3>
+                            <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-high"></tbody></table></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-down-right-dots text-blue-500"></i> Menor Carga (Média Peso)</h3>
+                            <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-low"></tbody></table></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB LAWYERS -->
+                <div id="tab-lawyers" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <div class="h-80 w-full relative"><canvas id="chartLawyersMain"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-semibold text-slate-700">Detalhamento por Profissional</h3></div>
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center">Total Processos</th><th class="px-6 py-4 text-center">Pontos de Carga</th><th class="px-6 py-4 text-center text-green-600">Finalizados</th><th class="px-6 py-4 text-center text-red-600">Pendentes/Atraso</th></tr></thead>
+                            <tbody id="table-lawyers-detail"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB CLIENTS -->
+                <div id="tab-clients" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <h3 class="font-semibold text-slate-700 mb-4">Top 15 Clientes por Volume</h3>
+                        <div class="h-80 relative"><canvas id="chartClientsBar"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Cliente</th><th class="px-6 py-4 text-center">Processos</th><th class="px-6 py-4 text-center">Peso Total</th><th class="px-6 py-4">Status Mais Comum</th></tr></thead>
+                            <tbody id="table-clients-detail"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB TASKS -->
+                <div id="tab-tasks" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <h3 class="font-semibold text-slate-700 mb-4">Distribuição de Tarefas</h3>
+                        <div class="h-80 relative"><canvas id="chartTasks"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Tipo de Tarefa</th><th class="px-6 py-4 text-center">Quantidade</th><th class="px-6 py-4">Equipe Principal</th></tr></thead>
+                            <tbody id="table-tasks-detail"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB WEIGHT -->
+                <div id="tab-weight" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <h3 class="font-semibold text-slate-700 mb-4">Matriz de Complexidade (1 a 4)</h3>
+                        <div class="h-96 relative"><canvas id="chartWeightStacked"></canvas></div>
+                    </div>
+                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center bg-slate-100">Peso 1 (Simples)</th><th class="px-6 py-4 text-center bg-blue-50">Peso 2 (Médio)</th><th class="px-6 py-4 text-center bg-amber-50">Peso 3 (Alto)</th><th class="px-6 py-4 text-center bg-red-50">Peso 4 (Crítico)</th></tr></thead>
+                            <tbody id="table-weight-detail"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB DEBUG (NOVO) -->
+                <div id="tab-debug" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-slate-800 mb-2">Verificação de Dados</h3>
+                        <p class="text-sm text-slate-500 mb-4">Verifique abaixo como o sistema leu sua planilha. Se as colunas estiverem "Desconhecido", renomeie no Excel.</p>
+                        <div class="overflow-x-auto border rounded-lg max-h-[500px]">
+                            <table class="w-full text-xs text-left font-mono">
+                                <thead class="bg-slate-100 text-slate-700 sticky top-0">
+                                    <tr id="debug-header"></tr>
+                                </thead>
+                                <tbody id="debug-body" class="bg-white divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- CORE STATE ---
+        let rawData = [];
+        let charts = {};
+
+        // --- UPLOAD HANDLERS ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        function handleFile(file) {
+            if (!file) return;
+            document.getElementById('upload-error').classList.add('hidden');
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    // Limpa dados antigos
+                    rawData = [];
+                    processCSV(e.target.result);
+                    initDashboard();
+                } catch(err) {
+                    showError("Erro Crítico: " + err.message);
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file, "UTF-8"); // Força UTF-8
+        }
+
+        // --- ROBUST PARSER V3 (BLINDADO) ---
+        function processCSV(text) {
+            // 1. Detectar Separador (Vírgula vs Ponto e Vírgula)
+            const firstLine = text.substring(0, text.indexOf('\n'));
+            const countSemi = (firstLine.match(/;/g) || []).length;
+            const countComma = (firstLine.match(/,/g) || []).length;
+            const separator = countSemi >= countComma ? ';' : ','; // Se tiver mais ; usa ;, senão ,
+
+            console.log("Separador detectado:", separator);
+
+            // 2. Parser Linha a Linha (State Machine)
+            const lines = parseCSVBuffer(text, separator);
+            if (lines.length < 2) throw new Error("O arquivo parece vazio ou tem apenas o cabeçalho.");
+
+            // 3. Mapeamento Inteligente de Colunas
+            const headers = lines[0].map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+            const map = detectColumns(headers);
+
+            console.log("Mapeamento de colunas:", map);
+
+            if (map.advogado === -1 && map.cliente === -1) {
+                throw new Error("Não conseguimos identificar as colunas 'Advogado' ou 'Cliente'. Verifique o cabeçalho da planilha.");
+            }
+
+            // 4. Extração de Dados
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i];
+                if (cols.length < 2) continue; // Pula linhas vazias
+
+                // Helper seguro para pegar valor
+                const getVal = (idx) => (idx !== -1 && cols[idx]) ? cols[idx].trim().replace(/^"|"$/g, '') : "";
+
+                let obj = {
+                    advogado: getVal(map.advogado) || "Não Identificado",
+                    cliente: getVal(map.cliente) || "Não Identificado",
+                    status: getVal(map.status) || "Em Andamento",
+                    tarefa: getVal(map.tarefa) || "Geral",
+                    peso: 1, // Default
+                    original: cols // Para debug
+                };
+
+                // Tratamento Especial de Peso
+                const pesoRaw = getVal(map.peso);
+                if(pesoRaw) {
+                    const num = parseInt(pesoRaw.replace(/\D/g, '')); // Remove não-numeros
+                    obj.peso = (num >= 1 && num <= 10) ? num : 1; // Sanity check
+                }
+
+                rawData.push(obj);
+            }
+
+            console.log(`Processado ${rawData.length} linhas.`);
+        }
+
+        // Parser caractere a caractere (Não quebra com enters ou aspas internas)
+        function parseCSVBuffer(text, separator) {
+            const rows = [];
+            let currentRow = [];
+            let currentCell = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentCell += '"'; // Aspas duplas escapadas
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes; // Toggle aspas
+                    }
+                } else if (char === separator && !inQuotes) {
+                    currentRow.push(currentCell); // Fim da célula
+                    currentCell = '';
+                } else if ((char === '\r' || char === '\n') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') i++; // Pula \n do \r\n
+                    currentRow.push(currentCell);
+                    rows.push(currentRow); // Fim da linha
+                    currentRow = [];
+                    currentCell = '';
+                } else {
+                    currentCell += char;
+                }
+            }
+            if (currentCell || currentRow.length > 0) {
+                currentRow.push(currentCell);
+                rows.push(currentRow);
+            }
+            return rows;
+        }
+
+        // Mapeia colunas baseado em sinônimos
+        function detectColumns(headers) {
+            const map = { advogado: -1, cliente: -1, status: -1, tarefa: -1, peso: -1 };
+            
+            headers.forEach((h, i) => {
+                if (h.match(/advogado|respons|nome|autor|owner/)) map.advogado = i;
+                else if (h.match(/cliente|empresa|parte|réu|solicitante/)) map.cliente = i;
+                else if (h.match(/status|fase|situa|estado|etapa/)) map.status = i;
+                else if (h.match(/tarefa|atividade|tipo|assunto/)) map.tarefa = i;
+                else if (h.match(/peso|complex|prioridade|score/)) map.peso = i;
+            });
+            return map;
+        }
+
+        // Separa múltiplos nomes (Seguro: Não separa por vírgula simples)
+        function splitNames(str) {
+            if (!str || str === "Não Identificado") return [str];
+            // Separa por ; OU por " / " OU por " e " (com espaços)
+            // Ignora vírgula simples para não quebrar "Silva, João"
+            return str.split(/;| \/ | e | & /i)
+                      .map(s => s.trim())
+                      .filter(s => s.length > 1);
+        }
+
+        // --- DASHBOARD LOGIC ---
+        function initDashboard() {
+            document.getElementById('view-upload').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            
+            // Sidebar info
+            document.getElementById('sidebar-total').innerText = rawData.length;
+
+            renderOverview();
+            renderLawyers();
+            renderClients();
+            renderTasks();
+            renderWeight();
+            renderDebug(); // Popula a tabela de debug
+        }
+
+        function renderOverview() {
+            document.getElementById('kpi-total').innerText = rawData.length;
+
+            const lawyerStats = {};
+            const clientSet = new Set();
+            let totalWeight = 0;
+
+            rawData.forEach(r => {
+                totalWeight += r.peso;
+                splitNames(r.cliente).forEach(c => clientSet.add(c));
+                splitNames(r.advogado).forEach(adv => {
+                    if(!lawyerStats[adv]) lawyerStats[adv] = { count: 0, weight: 0 };
+                    lawyerStats[adv].count++;
+                    lawyerStats[adv].weight += r.peso;
+                });
+            });
+
+            document.getElementById('kpi-lawyers-count').innerText = Object.keys(lawyerStats).length;
+            document.getElementById('kpi-clients-count').innerText = clientSet.size;
+            document.getElementById('kpi-avg-weight').innerText = (rawData.length > 0) ? (totalWeight / rawData.length).toFixed(2) : "0.0";
+
+            // Top 5 Tables
+            const list = Object.keys(lawyerStats).map(k => ({
+                name: k,
+                count: lawyerStats[k].count,
+                avg: lawyerStats[k].weight / lawyerStats[k].count
+            }));
+
+            // Ordena e Renderiza
+            renderTopTable(list, 'table-top-weight-high', 'desc');
+            renderTopTable(list, 'table-top-weight-low', 'asc');
+        }
+
+        function renderTopTable(list, elemId, order) {
+            const sorted = [...list].sort((a,b) => order === 'desc' ? b.avg - a.avg : a.avg - b.avg).slice(0,5);
+            let html = "";
+            sorted.forEach(l => {
+                const color = order === 'desc' ? 'text-red-600' : 'text-blue-600';
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="py-2 px-2 font-medium truncate max-w-[150px]">${l.name}</td>
+                    <td class="py-2 px-2 text-center bg-slate-50">${l.count}</td>
+                    <td class="py-2 px-2 text-right font-bold ${color}">${l.avg.toFixed(2)}</td>
+                </tr>`;
+            });
+            document.getElementById(elemId).innerHTML = html;
+        }
+
+        function renderLawyers() {
+            const stats = {};
+            rawData.forEach(r => {
+                splitNames(r.advogado).forEach(adv => {
+                    if(!stats[adv]) stats[adv] = { total: 0, w: 0, ok: 0, pending: 0 };
+                    stats[adv].total++;
+                    stats[adv].w += r.peso;
+                    
+                    const s = r.status.toLowerCase();
+                    if(s.match(/conclu|julg|arquiv|encerr/)) stats[adv].ok++;
+                    else stats[adv].pending++;
+                });
+            });
+
+            const sorted = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
+
+            // Chart
+            const ctx = document.getElementById('chartLawyersMain').getContext('2d');
+            if(charts.law) charts.law.destroy();
+            charts.law = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.slice(0, 15).map(x => x[0]),
+                    datasets: [{ label: 'Processos', data: sorted.slice(0, 15).map(x => x[1].total), backgroundColor: '#6366f1', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            });
+
+            // Table
+            let html = "";
+            sorted.forEach(([k, v]) => {
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                    <td class="px-6 py-3 text-center"><span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${v.total}</span></td>
+                    <td class="px-6 py-3 text-center text-slate-500">${v.w}</td>
+                    <td class="px-6 py-3 text-center font-bold text-green-600">${v.ok}</td>
+                    <td class="px-6 py-3 text-center font-bold text-red-500">${v.pending}</td>
+                </tr>`;
+            });
+            document.getElementById('table-lawyers-detail').innerHTML = html;
+        }
+
+        function renderClients() {
+            const stats = {};
+            rawData.forEach(r => {
+                splitNames(r.cliente).forEach(cli => {
+                    if(!stats[cli]) stats[cli] = { count: 0, w: 0, statusMap: {} };
+                    stats[cli].count++;
+                    stats[cli].w += r.peso;
+                    stats[cli].statusMap[r.status] = (stats[cli].statusMap[r.status] || 0) + 1;
+                });
+            });
+
+            const sorted = Object.entries(stats).sort((a,b) => b[1].count - a[1].count).slice(0, 20);
+
+            // Chart
+            const ctx = document.getElementById('chartClientsBar').getContext('2d');
+            if(charts.cli) charts.cli.destroy();
+            charts.cli = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(x => x[0].substring(0, 15) + '...'),
+                    datasets: [{ label: 'Volume', data: sorted.map(x => x[1].count), backgroundColor: '#0ea5e9', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            });
+
+            // Table
+            let html = "";
+            sorted.forEach(([k, v]) => {
+                const topStatus = Object.entries(v.statusMap).sort((a,b)=>b[1]-a[1])[0][0];
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                    <td class="px-6 py-3 text-center">${v.count}</td>
+                    <td class="px-6 py-3 text-center text-slate-500">${v.w}</td>
+                    <td class="px-6 py-3 text-xs text-slate-500">${topStatus}</td>
+                </tr>`;
+            });
+            document.getElementById('table-clients-detail').innerHTML = html;
+        }
+
+        function renderTasks() {
+            const stats = {};
+            rawData.forEach(r => {
+                if(!stats[r.tarefa]) stats[r.tarefa] = { count: 0, advs: {} };
+                stats[r.tarefa].count++;
+                splitNames(r.advogado).forEach(adv => {
+                    stats[r.tarefa].advs[adv] = (stats[r.tarefa].advs[adv] || 0) + 1;
+                });
+            });
+
+            const sorted = Object.entries(stats).sort((a,b) => b[1].count - a[1].count);
+
+            const ctx = document.getElementById('chartTasks').getContext('2d');
+            if(charts.task) charts.task.destroy();
+            charts.task = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(x => x[0]),
+                    datasets: [{ label: 'Qtd', data: sorted.map(x => x[1].count), backgroundColor: '#8b5cf6', borderRadius: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            });
+
+            let html = "";
+            sorted.forEach(([k, v]) => {
+                const topAdvs = Object.entries(v.advs).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]).join(", ");
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                    <td class="px-6 py-3 text-center font-bold text-slate-800">${v.count}</td>
+                    <td class="px-6 py-3 text-xs text-slate-500">${topAdvs}</td>
+                </tr>`;
+            });
+            document.getElementById('table-tasks-detail').innerHTML = html;
+        }
+
+        function renderWeight() {
+            const stats = {};
+            rawData.forEach(r => {
+                splitNames(r.advogado).forEach(adv => {
+                    if(!stats[adv]) stats[adv] = { p1:0, p2:0, p3:0, p4:0, total:0 };
+                    stats[adv].total++;
+                    const w = r.peso;
+                    if(w === 1) stats[adv].p1++;
+                    else if(w === 2) stats[adv].p2++;
+                    else if(w === 3) stats[adv].p3++;
+                    else stats[adv].p4++;
+                });
+            });
+
+            const sorted = Object.entries(stats).sort((a,b) => b[1].total - a[1].total).slice(0, 12);
+            
+            const ctx = document.getElementById('chartWeightStacked').getContext('2d');
+            if(charts.weight) charts.weight.destroy();
+            charts.weight = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(x => x[0]),
+                    datasets: [
+                        { label: 'P1', data: sorted.map(x=>x[1].p1), backgroundColor: '#e2e8f0' },
+                        { label: 'P2', data: sorted.map(x=>x[1].p2), backgroundColor: '#93c5fd' },
+                        { label: 'P3', data: sorted.map(x=>x[1].p3), backgroundColor: '#fcd34d' },
+                        { label: 'P4', data: sorted.map(x=>x[1].p4), backgroundColor: '#f87171' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x:{stacked:true}, y:{stacked:true} } }
+            });
+
+            let html = "";
+            sorted.forEach(([k, v]) => {
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                    <td class="px-6 py-3 text-center text-slate-400">${v.p1}</td>
+                    <td class="px-6 py-3 text-center text-blue-500 bg-blue-50/30 font-medium">${v.p2}</td>
+                    <td class="px-6 py-3 text-center text-amber-600 bg-amber-50/30 font-medium">${v.p3}</td>
+                    <td class="px-6 py-3 text-center text-red-600 bg-red-50/30 font-bold">${v.p4}</td>
+                </tr>`;
+            });
+            document.getElementById('table-weight-detail').innerHTML = html;
+        }
+
+        function renderDebug() {
+            const limit = 20;
+            const headers = ["Advogado (Lido)", "Cliente (Lido)", "Status", "Peso", "Tarefa"];
+            
+            let headHtml = "";
+            headers.forEach(h => headHtml += `<th class="px-4 py-2 border font-semibold">${h}</th>`);
+            document.getElementById('debug-header').innerHTML = headHtml;
+
+            let bodyHtml = "";
+            rawData.slice(0, limit).forEach(r => {
+                bodyHtml += `<tr class="hover:bg-slate-50">
+                    <td class="px-4 py-2 border truncate max-w-xs" title="${r.advogado}">${r.advogado}</td>
+                    <td class="px-4 py-2 border truncate max-w-xs" title="${r.cliente}">${r.cliente}</td>
+                    <td class="px-4 py-2 border">${r.status}</td>
+                    <td class="px-4 py-2 border">${r.peso}</td>
+                    <td class="px-4 py-2 border">${r.tarefa}</td>
+                </tr>`;
+            });
+            document.getElementById('debug-body').innerHTML = bodyHtml;
+        }
+
+        // --- DEMO DATA ---
+        function loadDemoData() {
+            // Gera CSV estilo brasileiro (Ponto e Vírgula)
+            let csv = "Responsáveis;Clientes;Status Atual;Peso (1-4);Tipo Tarefa\n";
+            const advs = ["Dra. Ana; Dr. Pedro", "Carlos Silva", "Mariana Souza", "Dr. João", "Fernanda Lima"];
+            const clis = ["Empresa X", "Banco Y; Seguradora Z", "Comércio ABC", "Indústria Beta"];
+            
+            for(let i=0; i<100; i++) {
+                const a = advs[Math.floor(Math.random()*advs.length)];
+                const c = clis[Math.floor(Math.random()*clis.length)];
+                const s = Math.random()>0.3 ? "Em Andamento" : "Concluído";
+                const p = Math.floor(Math.random()*4)+1;
+                const t = "Petição Inicial";
+                csv += `${a};${c};${s};${p};${t}\n`;
+            }
+            processCSV(csv);
+            initDashboard();
+        }
+
+        // --- UI UTILS ---
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${id}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            // Titulo Dinamico
+            const titles = { overview: "Visão Geral", lawyers: "Análise por Advogado", clients: "Análise de Clientes", tasks: "Tarefas", weight: "Carga de Trabalho", debug: "Debug de Dados" };
+            document.getElementById('header-title').innerText = titles[id] || "Dashboard";
+        }
+
+        function showError(msg) {
+            const err = document.getElementById('upload-error');
+            err.innerText = msg;
+            err.classList.remove('hidden');
+        }
+
+        function resetApp() { location.reload(); }
+
+    </script>
+</body>
+</html>
