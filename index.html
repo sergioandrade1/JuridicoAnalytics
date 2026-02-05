@@ -181,8 +181,28 @@
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 id="header-low-load" class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-down-right-dots text-blue-500"></i> Menor Carga (Média Peso)</h3><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-low"></tbody></table></div></div>
                     </div>
                 </div>
-                <!-- OUTRAS ABAS (Mantidas) -->
-                <div id="tab-lawyers" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><div class="h-80 w-full relative"><canvas id="chartLawyersMain"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><div class="p-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-semibold text-slate-700">Detalhamento por Profissional</h3></div><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center">Total Processos</th><th class="px-6 py-4 text-center">Pontos de Carga</th><th class="px-6 py-4 text-center text-green-600">Finalizados</th><th class="px-6 py-4 text-center text-red-600">Pendentes/Atraso</th></tr></thead><tbody id="table-lawyers-detail"></tbody></table></div></div>
+                <!-- ABAS -->
+                <div id="tab-lawyers" class="tab-content hidden fade-in">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                        <div class="h-80 w-full relative"><canvas id="chartLawyersMain"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-semibold text-slate-700">Detalhamento por Profissional</h3></div>
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-6 py-4">Advogado</th>
+                                    <th class="px-6 py-4 text-center">Total Processos</th>
+                                    <th class="px-6 py-4 text-center">Pontos de Carga</th>
+                                    <th class="px-6 py-4 text-center">Média Peso</th>
+                                    <th class="px-6 py-4 text-center text-green-600">Finalizados</th>
+                                    <th class="px-6 py-4 text-center text-red-600">Pendentes/Atraso</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-lawyers-detail"></tbody>
+                        </table>
+                    </div>
+                </div>
                 <div id="tab-clients" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><h3 class="font-semibold text-slate-700 mb-4">Top 15 Clientes por Volume</h3><div class="h-80 relative"><canvas id="chartClientsBar"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Cliente</th><th class="px-6 py-4 text-center">Processos</th><th class="px-6 py-4 text-center">Peso Total</th><th class="px-6 py-4">Status Mais Comum</th></tr></thead><tbody id="table-clients-detail"></tbody></table></div></div>
                 <div id="tab-tasks" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><h3 class="font-semibold text-slate-700 mb-4">Distribuição de Tarefas</h3><div class="h-80 relative"><canvas id="chartTasks"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Tipo de Tarefa</th><th class="px-6 py-4 text-center">Quantidade</th><th class="px-6 py-4">Equipe Principal</th></tr></thead><tbody id="table-tasks-detail"></tbody></table></div></div>
                 <div id="tab-weight" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><h3 class="font-semibold text-slate-700 mb-4">Matriz de Complexidade (1 a 4)</h3><div class="h-96 relative"><canvas id="chartWeightStacked"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center bg-slate-100">Peso 1 (Simples)</th><th class="px-6 py-4 text-center bg-blue-50">Peso 2 (Médio)</th><th class="px-6 py-4 text-center bg-amber-50">Peso 3 (Alto)</th><th class="px-6 py-4 text-center bg-red-50">Peso 4 (Crítico)</th><th class="px-6 py-4 text-center">Média Ponderada</th></tr></thead><tbody id="table-weight-detail"></tbody></table></div></div>
@@ -600,10 +620,24 @@
                     r.status.toLowerCase().match(/conclu|julg|arquiv|encerr|finaliz|baixad/) ? stats[a].ok++ : stats[a].p++;
                 });
             });
+            // REMOVIDO SLICE: Mostra todos os advogados
             const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t);
+            
             const ctx = document.getElementById('chartLawyersMain').getContext('2d');
-            charts.law = new Chart(ctx, { type:'bar', data:{ labels:s.slice(0,15).map(x=>x[0]), datasets:[{label:'Processos',data:s.slice(0,15).map(x=>x[1].t),backgroundColor:'#6366f1',borderRadius:4}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
-            let h=""; s.forEach(([k,v])=>{ h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-6 py-3 font-medium text-slate-700">${k}</td><td class="px-6 py-3 text-center"><span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${v.t}</span></td><td class="px-6 py-3 text-center text-slate-500">${v.w}</td><td class="px-6 py-3 text-center font-bold text-green-600">${v.ok}</td><td class="px-6 py-3 text-center font-bold text-red-500">${v.p}</td></tr>`; });
+            charts.law = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0]), datasets:[{label:'Processos',data:s.map(x=>x[1].t),backgroundColor:'#6366f1',borderRadius:4}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
+            
+            let h=""; 
+            s.forEach(([k,v])=>{ 
+                const avgWeight = v.t > 0 ? (v.w / v.t).toFixed(2) : "0.00";
+                h+=`<tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                        <td class="px-6 py-3 text-center"><span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${v.t}</span></td>
+                        <td class="px-6 py-3 text-center text-slate-500">${v.w}</td>
+                        <td class="px-6 py-3 text-center font-bold text-slate-700">${avgWeight}</td>
+                        <td class="px-6 py-3 text-center font-bold text-green-600">${v.ok}</td>
+                        <td class="px-6 py-3 text-center font-bold text-red-500">${v.p}</td>
+                    </tr>`; 
+            });
             document.getElementById('table-lawyers-detail').innerHTML = h;
         }
 
@@ -657,7 +691,9 @@
                     stats[a].p[w]++;
                 });
             });
-            const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t).slice(0,12);
+            // REMOVIDO SLICE: Mostra todos os advogados
+            const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t);
+            
             const ctx = document.getElementById('chartWeightStacked').getContext('2d');
             charts.w = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0]), datasets:[
                 {label:'P1',data:s.map(x=>x[1].p[1]),backgroundColor:'#e2e8f0'},
