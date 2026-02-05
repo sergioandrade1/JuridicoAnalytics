@@ -4,25 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- Título Limpo -->
     <title>Juridico Analytics</title>
     
-    <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%234f46e5'/%3E%3Cpath fill='white' d='M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm0 96c48.6 0 88 39.4 88 88s-39.4 88-88 88-88-39.4-88-88 39.4-88 88-88zm0 344c-58.7 0-111.3-26.6-146.5-68.2 1.8-48.2 39.3-86.3 86.5-87.5 10 7.4 22.4 11.7 35.8 11.7 26.5 0 48-21.5 48-48s-21.5-48-48-48-48 21.5-48 48c0 2.9.3 5.7.8 8.4-44.1 2.5-79.6 38.3-81.8 82.3C60.9 297.6 48 277.9 48 256c0-110.3 89.7-200 200-200s200 89.7 200 200-89.7 200-200 200z' transform='scale(0.7) translate(110, 110)'/%3E%3C/svg%3E">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- SheetJS (Para ler Excel .xlsx) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Configurações -->
     <script>
         tailwind.config = {
             theme: {
@@ -46,6 +36,7 @@
         .fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hover-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
+        .sheet-btn.active { background-color: #4f46e5; color: white; border-color: #4f46e5; }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden bg-[#f3f4f6]">
@@ -70,8 +61,8 @@
             <h2 class="text-xl font-bold text-slate-800">Trabalho em Andamento</h2>
             <p class="text-slate-500 mt-2 text-sm">Olá, <strong id="session-user-name" class="text-slate-700">...</strong>. Recuperamos seus dados anteriores.</p>
             <div class="mt-6 flex gap-3">
-                <button onclick="newAnalysis()" class="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm font-semibold">Descartar e Iniciar Novo</button>
-                <button onclick="restoreSession()" class="flex-1 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-colors text-sm font-bold">Continuar Análise</button>
+                <button onclick="newAnalysis()" class="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm font-semibold">Descartar</button>
+                <button onclick="restoreSession()" class="flex-1 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-colors text-sm font-bold">Continuar</button>
             </div>
         </div>
 
@@ -141,20 +132,28 @@
     <!-- VIEW 2: DASHBOARD -->
     <div id="view-dashboard" class="hidden flex h-full w-full">
         <!-- SIDEBAR -->
-        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm flex-shrink-0">
+        <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm flex-shrink-0 overflow-hidden">
             <div class="h-16 flex items-center px-6 border-b border-slate-100 gap-3">
                 <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-scale-balanced text-sm"></i></div>
                 <span class="font-bold text-slate-800 text-lg tracking-tight">Juridico Analytics</span>
             </div>
-            <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+            
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
                 <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Navegação</p>
                 <button onclick="switchTab('overview')" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-chart-pie w-5 text-center"></i> Visão Geral</button>
                 <button onclick="switchTab('lawyers')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-gavel w-5 text-center"></i> Por Advogado</button>
                 <button onclick="switchTab('clients')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-building w-5 text-center"></i> Por Cliente</button>
                 <button onclick="switchTab('tasks')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-list-check w-5 text-center"></i> Tarefas</button>
                 <button onclick="switchTab('weight')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-scale-unbalanced w-5 text-center"></i> Carga & Peso</button>
+
+                <!-- AREA DE SELEÇÃO DE ABAS (DINÂMICA) -->
+                <div id="sheets-container" class="hidden mt-6 pt-4 border-t border-slate-100">
+                    <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Abas da Planilha</p>
+                    <div id="sheets-list" class="space-y-1 px-1"></div>
+                </div>
             </div>
-            <div class="p-4 m-4 bg-slate-50 rounded-xl border border-slate-100">
+
+            <div class="p-4 m-4 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
                 <div class="flex items-center gap-2 mb-2"><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div><span class="text-xs font-semibold text-slate-700">Arquivo Ativo</span></div>
                 <p class="text-[10px] text-slate-400">Total de Registros:</p><p class="text-xs font-medium text-slate-600" id="sidebar-total">0</p>
                 <button onclick="newAnalysis()" class="mt-3 w-full py-1.5 text-xs text-primary-600 border border-primary-100 bg-primary-50 rounded hover:bg-primary-100 transition-colors flex items-center justify-center gap-2 font-medium"><i class="fa-solid fa-folder-plus"></i> Nova Análise</button>
@@ -175,17 +174,32 @@
             <div class="flex-1 overflow-auto p-8 custom-scrollbar relative">
                 <!-- TABS -->
                 <div id="tab-overview" class="tab-content fade-in">
+                    <!-- KPIs -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl"><i class="fa-solid fa-folder-open"></i></div><div><p class="text-xs font-bold text-slate-400 uppercase">Total Processos</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-total">0</h3></div></div></div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center text-xl"><i class="fa-solid fa-user-tie"></i></div><div><p class="text-xs font-bold text-slate-400 uppercase">Advogados Ativos</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-lawyers-count">0</h3></div></div></div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center text-xl"><i class="fa-solid fa-briefcase"></i></div><div><p class="text-xs font-bold text-slate-400 uppercase">Carteira de Clientes</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-clients-count">0</h3></div></div></div>
                         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover-card"><div class="flex items-center gap-4"><div class="w-12 h-12 rounded-full bg-purple-50 text-purple-500 flex items-center justify-center text-xl"><i class="fa-solid fa-weight-hanging"></i></div><div><p class="text-xs font-bold text-slate-400 uppercase">Complexidade Média</p><h3 class="text-2xl font-bold text-slate-800" id="kpi-avg-weight">0.0</h3></div></div></div>
                     </div>
+
+                    <!-- INSIGHTS DO EXPEDIENTE (NOVA SEÇÃO) -->
+                    <div id="insights-section" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Preenchido via JS -->
+                    </div>
+
+                    <!-- GRÁFICOS DINÂMICOS -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-up-right-dots text-red-500"></i> Maior Carga (Média Peso)</h3><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-high"></tbody></table></div></div>
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-down-right-dots text-blue-500"></i> Menor Carga (Média Peso)</h3><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-low"></tbody></table></div></div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 id="header-high-load" class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-up-right-dots text-red-500"></i> Maior Carga (Média Peso)</h3>
+                            <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-high"></tbody></table></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                            <h3 id="header-low-load" class="font-semibold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2"><i class="fa-solid fa-arrow-down-right-dots text-blue-500"></i> Menor Carga (Média Peso)</h3>
+                            <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-400 uppercase bg-slate-50"><tr><th class="py-2 px-2">Advogado</th><th class="py-2 px-2 text-center">Qtd.</th><th class="py-2 px-2 text-right">Média</th></tr></thead><tbody class="text-slate-600" id="table-top-weight-low"></tbody></table></div>
+                        </div>
                     </div>
                 </div>
+                <!-- OUTRAS ABAS (Mantidas) -->
                 <div id="tab-lawyers" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><div class="h-80 w-full relative"><canvas id="chartLawyersMain"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><div class="p-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-semibold text-slate-700">Detalhamento por Profissional</h3></div><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center">Total Processos</th><th class="px-6 py-4 text-center">Pontos de Carga</th><th class="px-6 py-4 text-center text-green-600">Finalizados</th><th class="px-6 py-4 text-center text-red-600">Pendentes/Atraso</th></tr></thead><tbody id="table-lawyers-detail"></tbody></table></div></div>
                 <div id="tab-clients" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><h3 class="font-semibold text-slate-700 mb-4">Top 15 Clientes por Volume</h3><div class="h-80 relative"><canvas id="chartClientsBar"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Cliente</th><th class="px-6 py-4 text-center">Processos</th><th class="px-6 py-4 text-center">Peso Total</th><th class="px-6 py-4">Status Mais Comum</th></tr></thead><tbody id="table-clients-detail"></tbody></table></div></div>
                 <div id="tab-tasks" class="tab-content hidden fade-in"><div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6"><h3 class="font-semibold text-slate-700 mb-4">Distribuição de Tarefas</h3><div class="h-80 relative"><canvas id="chartTasks"></canvas></div></div><div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Tipo de Tarefa</th><th class="px-6 py-4 text-center">Quantidade</th><th class="px-6 py-4">Equipe Principal</th></tr></thead><tbody id="table-tasks-detail"></tbody></table></div></div>
@@ -197,6 +211,7 @@
     <script>
         // --- CORE ---
         let rawData = [];
+        let currentWorkbook = null; 
         let charts = {};
         const DB_KEY = 'juridico_data_v4';
         const USER_KEY = 'juridico_user_v4';
@@ -240,7 +255,7 @@
             initDashboard();
         }
 
-        // --- UPLOAD HANDLER (EXCEL + CSV) ---
+        // --- UPLOAD HANDLER ---
         ['drop-zone', 'drop-zone-simple'].forEach(id => {
             const zone = document.getElementById(id);
             const input = zone.querySelector('input');
@@ -258,50 +273,74 @@
             if (!file) return;
             const ext = file.name.split('.').pop().toLowerCase();
             
-            // Lógica para EXCEL
             if (ext === 'xlsx' || ext === 'xls') {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, {type: 'array'});
+                        currentWorkbook = workbook; 
+                        renderSheetSelector(workbook.SheetNames);
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        // Converte para CSV usando pipe como separador para evitar conflito com virgula decimal
                         const csvText = XLSX.utils.sheet_to_csv(firstSheet, {FS: ";"}); 
                         finishFileProcessing(csvText, file.name, contentEl, successEl, nameEl);
-                    } catch(err) {
-                        alert("Erro ao ler Excel: " + err.message);
-                    }
+                    } catch(err) { alert("Erro ao ler Excel: " + err.message); }
                 };
                 reader.readAsArrayBuffer(file);
-            } 
-            // Lógica para CSV
-            else {
+            } else {
+                currentWorkbook = null;
+                document.getElementById('sheets-container').classList.add('hidden'); 
                 const reader = new FileReader();
                 reader.onload = (e) => { finishFileProcessing(e.target.result, file.name, contentEl, successEl, nameEl); };
                 reader.readAsText(file, "UTF-8");
             }
         }
 
+        function renderSheetSelector(sheetNames) {
+            const container = document.getElementById('sheets-container');
+            const list = document.getElementById('sheets-list');
+            if (sheetNames.length <= 1) { container.classList.add('hidden'); return; }
+            container.classList.remove('hidden');
+            list.innerHTML = ''; 
+            sheetNames.forEach((name, index) => {
+                const btn = document.createElement('button');
+                btn.className = `sheet-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors border border-transparent ${index === 0 ? 'active' : ''}`;
+                btn.innerHTML = `<i class="fa-regular fa-file-lines mr-2"></i> ${name}`;
+                btn.onclick = () => switchSheet(name, btn);
+                list.appendChild(btn);
+            });
+        }
+
+        function switchSheet(sheetName, clickedBtn) {
+            if (!currentWorkbook) return;
+            document.querySelectorAll('.sheet-btn').forEach(b => b.classList.remove('active'));
+            clickedBtn.classList.add('active');
+            const sheet = currentWorkbook.Sheets[sheetName];
+            const csv = XLSX.utils.sheet_to_csv(sheet, {FS: ";"});
+            
+            // LIMPA DADOS ANTIGOS ANTES DE PROCESSAR
+            rawData = []; 
+            processCSV(csv);
+            
+            document.getElementById('sidebar-total').innerText = rawData.length;
+            initDashboard();
+            try { localStorage.setItem(DB_KEY, JSON.stringify(rawData)); } catch(e){}
+        }
+
         function finishFileProcessing(text, name, contentEl, successEl, nameEl) {
             try {
-                rawData = [];
-                processCSV(text);
-                contentEl.classList.add('hidden');
-                successEl.classList.remove('hidden');
-                successEl.classList.add('flex');
-                nameEl.innerText = name;
-                document.getElementById('login-error').classList.add('hidden');
-            } catch(err) {
-                alert("Erro: " + err.message);
-            }
+                rawData = []; processCSV(text);
+                contentEl.classList.add('hidden'); successEl.classList.remove('hidden'); successEl.classList.add('flex');
+                nameEl.innerText = name; document.getElementById('login-error').classList.add('hidden');
+            } catch(err) { alert("Erro: " + err.message); }
         }
 
         function resetFile(e) { e.stopPropagation(); resetZone('drop-zone'); }
         function resetFileSimple(e) { e.stopPropagation(); resetZone('drop-zone-simple'); }
         function resetZone(id) {
             const zone = document.getElementById(id);
-            rawData = [];
+            rawData = []; currentWorkbook = null;
+            document.getElementById('sheets-container').classList.add('hidden');
             zone.querySelector('input').value = "";
             zone.querySelector('[id^="drop-content"]').classList.remove('hidden');
             zone.querySelector('[id^="file-success"]').classList.add('hidden');
@@ -334,28 +373,22 @@
         function processCSV(text) {
             const firstLine = text.substring(0, text.indexOf('\n'));
             const separator = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
-            
             const lines = parseCSVBuffer(text, separator);
             if (lines.length < 2) throw new Error("Arquivo vazio.");
-            
             const headers = lines[0].map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
             const map = { advogado: -1, cliente: -1, status: -1, tarefa: -1, peso: -1 };
-            
             headers.forEach((h, i) => {
                 if (h.match(/advogado|respons|nome|autor|owner/)) map.advogado = i;
                 else if (h.match(/cliente|empresa|parte|réu|solicitante/)) map.cliente = i;
                 else if (h.match(/status|fase|situa|estado|etapa/)) map.status = i;
                 else if (h.match(/tarefa|atividade|tipo|assunto/)) map.tarefa = i;
-                else if (h.match(/peso|complex|prioridade|score/)) map.peso = i;
+                else if (h.match(/peso|complex|prioridade|score|gravidade|nivel/)) map.peso = i;
             });
-
-            if (map.advogado === -1 && map.cliente === -1) throw new Error("Colunas 'Advogado' ou 'Cliente' não encontradas.");
-
+            if (map.advogado === -1 && map.cliente === -1) { console.warn("Aba sem colunas"); return; }
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i];
                 if (cols.length < 2) continue;
                 const getVal = (idx) => (idx !== -1 && cols[idx]) ? cols[idx].trim().replace(/^"|"$/g, '') : "";
-                
                 let obj = {
                     advogado: getVal(map.advogado) || "Não Identificado",
                     cliente: getVal(map.cliente) || "Não Identificado",
@@ -365,6 +398,7 @@
                 };
                 const p = getVal(map.peso).replace(/\D/g, '');
                 if(p) obj.peso = parseInt(p) || 1;
+                else obj.peso = 1;
                 rawData.push(obj);
             }
         }
@@ -383,30 +417,101 @@
             return rows;
         }
 
-        // --- DASHBOARD ---
+        // --- DASHBOARD RENDER ---
         function initDashboard() {
             renderOverview(); renderLawyers(); renderClients(); renderTasks(); renderWeight();
         }
         function splitNames(s) { return (!s || s==="Não Identificado") ? [s] : s.split(/;| \/ | e | & /i).map(x=>x.trim()).filter(x=>x.length>1); }
         
+        function generateInsights(law, total, raw) {
+            const container = document.getElementById('insights-section');
+            if(!container) return;
+            const keys = Object.keys(law);
+            
+            // SE ESTIVER VAZIO, LIMPA E RETORNA
+            if(keys.length === 0 || total === 0) { 
+                container.innerHTML = ''; 
+                return; 
+            }
+            
+            // 1. Maior Volume
+            const topAdv = keys.reduce((a, b) => law[a].c > law[b].c ? a : b);
+            const topCount = law[topAdv]?.c || 0;
+
+            // 2. Complexidade
+            const complexCount = raw.filter(r => r.peso >= 3).length;
+            const complexPct = ((complexCount / total) * 100).toFixed(0);
+
+            // 3. Fluxo
+            const pendingCount = raw.filter(r => !r.status.toLowerCase().match(/conclu|julg|arquiv|encerr|finaliz|baixad/)).length;
+            const pendingPct = ((pendingCount / total) * 100).toFixed(0);
+
+            container.innerHTML = `
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
+                    <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg shrink-0"><i class="fa-solid fa-trophy"></i></div>
+                    <div><p class="text-xs font-bold text-indigo-400 uppercase">Maior Volume</p><p class="text-sm text-slate-700 font-medium">${topAdv} lidera com <span class="font-bold">${topCount}</span> processos.</p></div>
+                </div>
+                <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl flex items-start gap-3">
+                    <div class="bg-purple-100 text-purple-600 p-2 rounded-lg shrink-0"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div><p class="text-xs font-bold text-purple-400 uppercase">Complexidade</p><p class="text-sm text-slate-700 font-medium">${complexPct}% dos casos são de alta complexidade (Peso 3+).</p></div>
+                </div>
+                <div class="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-start gap-3">
+                    <div class="bg-orange-100 text-orange-600 p-2 rounded-lg shrink-0"><i class="fa-solid fa-clock"></i></div>
+                    <div><p class="text-xs font-bold text-orange-400 uppercase">Fluxo de Trabalho</p><p class="text-sm text-slate-700 font-medium">${pendingPct}% da carteira está ativa/pendente.</p></div>
+                </div>
+            `;
+        }
+
         function renderOverview() {
+            // ATUALIZA KPIS PARA ZERO IMEDIATAMENTE
             document.getElementById('kpi-total').innerText = rawData.length;
+            
             const law={}, cli=new Set(); let w=0;
+            
+            // SÓ PROCESSA SE HOUVER DADOS
             rawData.forEach(r=>{
                 w+=r.peso; splitNames(r.cliente).forEach(c=>cli.add(c));
                 splitNames(r.advogado).forEach(a=>{ law[a] = (law[a]||{c:0,w:0}); law[a].c++; law[a].w+=r.peso; });
             });
+
+            // ATUALIZA KPIS COM OS DADOS (OU ZERO SE VAZIO)
             document.getElementById('kpi-lawyers-count').innerText = Object.keys(law).length;
             document.getElementById('kpi-clients-count').innerText = cli.size;
             document.getElementById('kpi-avg-weight').innerText = rawData.length ? (w/rawData.length).toFixed(2) : "0.0";
             
+            // LIMPA OU GERA INSIGHTS
+            generateInsights(law, rawData.length, rawData);
+
             const list = Object.keys(law).map(k=>({n:k, c:law[k].c, a:law[k].w/law[k].c}));
-            renderTop(list, 'table-top-weight-high', 'desc'); renderTop(list, 'table-top-weight-low', 'asc');
+            
+            // SE ESTIVER VAZIO, AS TABELAS FICARÃO VAZIAS
+            if (list.length === 0) {
+                document.getElementById('table-top-weight-high').innerHTML = "";
+                document.getElementById('table-top-weight-low').innerHTML = "";
+                return;
+            }
+
+            const allWeightsEqual = list.length > 0 && list.every(i => Math.abs(i.a - list[0].a) < 0.01);
+            const sortKey = allWeightsEqual ? 'c' : 'a'; 
+            const labelMetric = allWeightsEqual ? 'Volume' : 'Média Peso';
+            
+            const iconUp = `<i class="fa-solid fa-arrow-up-right-dots text-red-500 mr-2"></i>`;
+            const iconDown = `<i class="fa-solid fa-arrow-down-right-dots text-blue-500 mr-2"></i>`;
+            document.getElementById('header-high-load').innerHTML = `${iconUp} Maior Carga (${labelMetric})`;
+            document.getElementById('header-low-load').innerHTML = `${iconDown} Menor Carga (${labelMetric})`;
+
+            renderTopTable(list, 'table-top-weight-high', 'desc', sortKey); 
+            renderTopTable(list, 'table-top-weight-low', 'asc', sortKey);
         }
-        function renderTop(l, id, o) {
-            const s = [...l].sort((a,b)=>o==='desc'?b.a-a.a:a.a-b.a).slice(0,5);
-            let h=""; s.forEach(x=>{ h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="py-2 px-2 font-medium truncate max-w-[150px]">${x.n}</td><td class="py-2 px-2 text-center bg-slate-50">${x.c}</td><td class="py-2 px-2 text-right font-bold ${o==='desc'?'text-red-600':'text-blue-600'}">${x.a.toFixed(2)}</td></tr>`; });
-            document.getElementById(id).innerHTML = h;
+
+        function renderTopTable(list, elemId, order, key) {
+            const sorted = [...list].sort((a,b) => order === 'desc' ? b[key] - a[key] : a[key] - b[key]).slice(0,5);
+            let html = "";
+            sorted.forEach(l => {
+                const color = order === 'desc' ? 'text-red-600' : 'text-blue-600';
+                html += `<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="py-2 px-2 font-medium truncate max-w-[150px]">${l.n}</td><td class="py-2 px-2 text-center bg-slate-50 font-bold">${l.c}</td><td class="py-2 px-2 text-right font-bold ${color}">${l.a.toFixed(2)}</td></tr>`;
+            });
+            document.getElementById(elemId).innerHTML = html;
         }
         
         function renderLawyers() {
@@ -415,15 +520,13 @@
                 splitNames(r.advogado).forEach(a=>{
                     if(!stats[a]) stats[a]={t:0,w:0,ok:0,p:0};
                     stats[a].t++; stats[a].w+=r.peso;
-                    r.status.toLowerCase().match(/conclu|julg|arquiv|encerr/) ? stats[a].ok++ : stats[a].p++;
+                    r.status.toLowerCase().match(/conclu|julg|arquiv|encerr|finaliz|baixad/) ? stats[a].ok++ : stats[a].p++;
                 });
             });
             const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t);
-            
             const ctx = document.getElementById('chartLawyersMain').getContext('2d');
             if(charts.law) charts.law.destroy();
             charts.law = new Chart(ctx, { type:'bar', data:{ labels:s.slice(0,15).map(x=>x[0]), datasets:[{label:'Processos',data:s.slice(0,15).map(x=>x[1].t),backgroundColor:'#6366f1',borderRadius:4}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
-            
             let h=""; s.forEach(([k,v])=>{ h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-6 py-3 font-medium text-slate-700">${k}</td><td class="px-6 py-3 text-center"><span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold">${v.t}</span></td><td class="px-6 py-3 text-center text-slate-500">${v.w}</td><td class="px-6 py-3 text-center font-bold text-green-600">${v.ok}</td><td class="px-6 py-3 text-center font-bold text-red-500">${v.p}</td></tr>`; });
             document.getElementById('table-lawyers-detail').innerHTML = h;
         }
@@ -437,11 +540,9 @@
                 });
             });
             const s = Object.entries(stats).sort((a,b)=>b[1].c - a[1].c).slice(0,20);
-            
             const ctx = document.getElementById('chartClientsBar').getContext('2d');
             if(charts.cli) charts.cli.destroy();
             charts.cli = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0].substring(0,15)+'...'), datasets:[{label:'Volume',data:s.map(x=>x[1].c),backgroundColor:'#0ea5e9',borderRadius:4}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
-            
             let h=""; s.forEach(([k,v])=>{ h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-6 py-3 font-medium text-slate-700">${k}</td><td class="px-6 py-3 text-center">${v.c}</td><td class="px-6 py-3 text-center text-slate-500">${v.w}</td><td class="px-6 py-3 text-xs text-slate-500">${Object.entries(v.s).sort((a,b)=>b[1]-a[1])[0][0]}</td></tr>`; });
             document.getElementById('table-clients-detail').innerHTML = h;
         }
@@ -453,11 +554,9 @@
                 stats[t].c++; splitNames(r.advogado).forEach(a=>stats[t].a[a]=(stats[t].a[a]||0)+1);
             });
             const s = Object.entries(stats).sort((a,b)=>b[1].c - a[1].c);
-            
             const ctx = document.getElementById('chartTasks').getContext('2d');
             if(charts.task) charts.task.destroy();
             charts.task = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0]), datasets:[{label:'Qtd',data:s.map(x=>x[1].c),backgroundColor:'#8b5cf6',borderRadius:4}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}} });
-            
             let h=""; s.forEach(([k,v])=>{ h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-6 py-3 font-medium text-slate-700">${k}</td><td class="px-6 py-3 text-center font-bold text-slate-800">${v.c}</td><td class="px-6 py-3 text-xs text-slate-500">${Object.entries(v.a).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]).join(', ')}</td></tr>`; });
             document.getElementById('table-tasks-detail').innerHTML = h;
         }
@@ -473,7 +572,6 @@
                 });
             });
             const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t).slice(0,12);
-            
             const ctx = document.getElementById('chartWeightStacked').getContext('2d');
             if(charts.w) charts.w.destroy();
             charts.w = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0]), datasets:[
@@ -482,7 +580,6 @@
                 {label:'P3',data:s.map(x=>x[1].p[3]),backgroundColor:'#fcd34d'},
                 {label:'P4',data:s.map(x=>x[1].p[4]),backgroundColor:'#f87171'}
             ]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true}}} });
-            
             let h=""; s.forEach(([k,v])=>{
                 const weightedAvg = (v.p[1]*1 + v.p[2]*2 + v.p[3]*3 + v.p[4]*4) / v.t;
                 h+=`<tr class="border-b border-slate-100 hover:bg-slate-50"><td class="px-6 py-3 font-medium text-slate-700">${k}</td><td class="px-6 py-3 text-center text-slate-400">${v.p[1]}</td><td class="px-6 py-3 text-center text-blue-500 bg-blue-50/30 font-medium">${v.p[2]}</td><td class="px-6 py-3 text-center text-amber-600 bg-amber-50/30 font-medium">${v.p[3]}</td><td class="px-6 py-3 text-center text-red-600 bg-red-50/30 font-bold">${v.p[4]}</td><td class="px-6 py-3 text-center font-bold text-slate-700">${weightedAvg.toFixed(2)}</td></tr>`; 
