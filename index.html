@@ -7,8 +7,8 @@
     <!-- Título Limpo -->
     <title>Juridico Analytics</title>
     
-    <!-- Favicon (Ícone na aba) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><path fill=%22%234f46e5%22 d=%22M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm0 96c48.6 0 88 39.4 88 88s-39.4 88-88 88-88-39.4-88-88 39.4-88 88-88zm0 344c-58.7 0-111.3-26.6-146.5-68.2 1.8-48.2 39.3-86.3 86.5-87.5 10 7.4 22.4 11.7 35.8 11.7 26.5 0 48-21.5 48-48s-21.5-48-48-48-48 21.5-48 48c0 2.9.3 5.7.8 8.4-44.1 2.5-79.6 38.3-81.8 82.3C60.9 297.6 48 277.9 48 256c0-110.3 89.7-200 200-200s200 89.7 200 200-89.7 200-200 200z%22/></svg>">
+    <!-- Favicon (Novo Símbolo: Balança Branca em Fundo Roxo) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%234f46e5'/><path fill='white' d='M501.96 230.76l-133.7-152.8c-7.8-8.9-19.1-14-30.9-14h-19.1c-1.6-13.8-6.1-26.7-12.7-38.3L336.87 5.76C339.7 2.14 337.13 0 332.53 0H179.47c-4.6 0-7.17 2.14-4.34 5.76L206.46 25.66c-6.6 11.6-11.1 24.5-12.7 38.3h-19.1c-11.8 0-23.1 5.1-30.9 14L10.04 230.76C2.39 239.51 0 251.24 0 262.4c0 48.29 41.7 88.3 96 89.5v8.1c0 17.7 14.3 32 32 32h64c17.7 0 32-14.3 32-32v-8.1c22.5-.5 43.1-7.2 60.1-18.3 17.3 11.2 38.3 17.8 61.2 18.3v8.1c0 17.7 14.3 32 32 32h64c17.7 0 32-14.3 32-32v-8.1c54.3-1.2 96-41.21 96-89.5 0-11.16-2.39-22.89-10.34-31.64zM96 320c-35.3 0-64-21.5-64-48s28.7-48 64-48 64 21.5 64 48-28.7 48-64 48zm320 0c-35.3 0-64-21.5-64-48s28.7-48 64-48 64 21.5 64 48-28.7 48-64 48zm-160-70.3c-23.6 0-43.9-12.3-55.6-31.1l-10-16.7 131.2.1-10 16.7c-11.7 18.8-32 31-55.6 31z'/></svg>">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -53,7 +53,7 @@
     <!-- VIEW 1: ENTRADA (Gerencia 3 Estados: Login, Restaurar Sessão, Nova Análise) -->
     <div id="view-upload" class="flex-1 flex flex-col items-center justify-center p-4 fade-in bg-slate-50 absolute inset-0 z-50">
         
-        <!-- Header Simples -->
+        <!-- Header Simples com Novo Logo -->
         <div class="text-center mb-8">
             <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-600 text-white mb-4 shadow-lg shadow-primary-500/30">
                 <i class="fa-solid fa-scale-balanced text-3xl"></i>
@@ -62,7 +62,7 @@
             <p class="text-slate-500 mt-2">Inteligência de Dados</p>
         </div>
 
-        <!-- 1. CARD: RESTAURAR SESSÃO (Usuário + Dados Existem) -->
+        <!-- 1. CARD: RESTAURAR SESSÃO -->
         <div id="session-card" class="hidden w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center fade-in relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-green-500"></div>
             <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -81,7 +81,7 @@
             </div>
         </div>
 
-        <!-- 2. CARD: NOVA ANÁLISE (Apenas Usuário Existe - Loop Rápido) -->
+        <!-- 2. CARD: NOVA ANÁLISE -->
         <div id="upload-only-card" class="hidden w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 relative overflow-hidden fade-in">
             <div class="absolute top-0 left-0 w-full h-1 bg-primary-500"></div>
             
@@ -184,9 +184,12 @@
     <div id="view-dashboard" class="hidden flex h-full w-full">
         <!-- SIDEBAR -->
         <aside class="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm flex-shrink-0">
-            <div class="h-16 flex items-center px-6 border-b border-slate-100 gap-2">
-                <i class="fa-solid fa-scale-balanced text-primary-600 text-xl"></i>
-                <span class="font-bold text-slate-800 text-lg">Juridico Analytics</span>
+            <!-- Novo Logo na Sidebar -->
+            <div class="h-16 flex items-center px-6 border-b border-slate-100 gap-3">
+                <div class="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white shrink-0">
+                    <i class="fa-solid fa-scale-balanced text-sm"></i>
+                </div>
+                <span class="font-bold text-slate-800 text-lg tracking-tight">Juridico Analytics</span>
             </div>
             
             <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
