@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JuridicoAnalytics - Dashboard Pro V3</title>
+    <title>JuridicoAnalytics - Dashboard Pro V4</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -54,70 +54,108 @@
                 <i class="fa-solid fa-scale-balanced text-3xl"></i>
             </div>
             <h1 class="text-3xl font-bold text-slate-800 tracking-tight">JuridicoAnalytics</h1>
-            <p class="text-slate-500 mt-2">Inteligência de Dados para Advogados</p>
+            <p class="text-slate-500 mt-2">Acesso Restrito</p>
         </div>
 
-        <!-- Card de Login -->
-        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 relative overflow-hidden">
+        <!-- Tela de Sessão Recuperada (Hidden by Default) -->
+        <div id="session-card" class="hidden w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center fade-in">
+            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-user-check text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-800">Bem-vindo de volta!</h2>
+            <p class="text-slate-500 mt-2 text-sm">Encontramos uma sessão ativa para <strong id="session-user-name" class="text-primary-600">...</strong></p>
+            
+            <div class="mt-6 flex gap-3">
+                <button onclick="logout()" class="flex-1 py-3 border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 transition-colors text-sm font-semibold">
+                    Sair
+                </button>
+                <button onclick="restoreSession()" class="flex-1 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-colors text-sm font-bold">
+                    Continuar
+                </button>
+            </div>
+        </div>
+
+        <!-- Card de Login (Default) -->
+        <div id="login-card" class="w-full max-w-md bg-white p-8 rounded-2xl shadow-xl border border-slate-100 relative overflow-hidden">
             <!-- Barra decorativa topo -->
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 to-primary-600"></div>
 
-            <div class="space-y-6">
-                <!-- Input Nome -->
+            <div class="space-y-5">
+                <!-- Input Usuário -->
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Identificação do Usuário <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Login / Usuário</label>
                     <div class="relative">
                         <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input type="text" id="userNameInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 focus:border-primary-500 outline-none transition-all placeholder-slate-400 text-sm" placeholder="Digite seu nome (ex: Dr. Carlos)">
+                        <input type="text" id="userNameInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 focus:border-primary-500 outline-none transition-all placeholder-slate-400 text-sm" placeholder="Ex: admsilva">
                     </div>
                 </div>
 
+                <!-- Input Senha -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Senha</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="password" id="passwordInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 focus:border-primary-500 outline-none transition-all placeholder-slate-400 text-sm" placeholder="••••••••">
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1 text-right">Senha padrão: <span class="font-mono text-slate-500">123456</span></p>
+                </div>
+
+                <div class="h-px bg-slate-100 my-4"></div>
+
                 <!-- Dropzone Compacto -->
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">Base de Dados (CSV) <span class="text-red-500">*</span></label>
-                    <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-50 hover:border-primary-400 transition-all group relative">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Base de Dados (CSV)</label>
+                    <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 hover:border-primary-400 transition-all group relative">
                         <input type="file" id="fileInput" class="hidden" accept=".csv">
                         
                         <!-- Estado Inicial -->
                         <div id="drop-content" class="pointer-events-none">
-                            <div class="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-3 text-primary-500 group-hover:scale-110 transition-transform">
-                                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                            <div class="flex items-center justify-center gap-3">
+                                <div class="w-8 h-8 bg-primary-50 rounded-full flex items-center justify-center text-primary-500">
+                                    <i class="fa-solid fa-upload text-sm"></i>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-sm font-medium text-slate-600">Selecione o arquivo CSV</p>
+                                    <p class="text-[10px] text-slate-400">Clique ou arraste</p>
+                                </div>
                             </div>
-                            <p class="text-sm font-medium text-slate-600">Clique para carregar</p>
-                            <p class="text-xs text-slate-400 mt-1">ou arraste o arquivo aqui</p>
                         </div>
 
                         <!-- Estado Sucesso (Oculto) -->
-                        <div id="file-success" class="hidden absolute inset-0 bg-white flex-col items-center justify-center rounded-xl">
-                            <i class="fa-solid fa-circle-check text-4xl text-green-500 mb-2 animate-bounce"></i>
-                            <p class="text-sm font-bold text-slate-800">Arquivo Pronto!</p>
-                            <p class="text-xs text-slate-500 max-w-[200px] truncate px-4" id="file-name-display">dados.csv</p>
-                            <button onclick="resetFile(event)" class="text-[10px] text-red-500 mt-2 hover:underline">Remover</button>
+                        <div id="file-success" class="hidden absolute inset-0 bg-white items-center justify-center rounded-xl gap-3">
+                            <i class="fa-solid fa-file-csv text-2xl text-green-500"></i>
+                            <div class="text-left overflow-hidden">
+                                <p class="text-xs font-bold text-slate-700">Arquivo Carregado</p>
+                                <p class="text-[10px] text-slate-400 truncate max-w-[150px]" id="file-name-display">dados.csv</p>
+                            </div>
+                            <button onclick="resetFile(event)" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Botão Ação -->
-                <button onclick="startSystem()" class="w-full py-3.5 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-xl shadow-lg shadow-primary-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                    <span>Acessar Dashboard</span>
-                    <i class="fa-solid fa-arrow-right"></i>
+                <button onclick="startSystem()" class="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-slate-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 mt-4">
+                    <span>Entrar no Sistema</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
                 </button>
                 
-                <div id="login-error" class="hidden p-3 bg-red-50 text-red-600 text-xs rounded-lg text-center border border-red-100 flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    <span id="login-error-text">Preencha todos os campos obrigatórios.</span>
+                <div id="login-error" class="hidden p-3 bg-red-50 text-red-600 text-xs rounded-lg text-center border border-red-100 flex items-center justify-center gap-2 animate-pulse">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span id="login-error-text">Erro no login.</span>
                 </div>
             </div>
 
-            <div class="mt-8 text-center border-t border-slate-100 pt-4">
+            <div class="mt-6 text-center">
                 <button onclick="loadDemoData()" class="text-xs text-slate-400 hover:text-primary-600 font-medium transition-colors">
-                    Não tem arquivo? <span class="underline">Usar dados de teste</span>
+                    Esqueceu a senha? <span class="underline">Usar modo demonstração</span>
                 </button>
             </div>
         </div>
         
         <div class="mt-8 text-center">
-            <p class="text-xs text-slate-400">© 2026 JuridicoAnalytics. Processamento local e seguro.</p>
+            <p class="text-xs text-slate-400">© 2026 JuridicoAnalytics V4. Acesso Seguro.</p>
             <p class="text-[10px] text-slate-300 mt-1">Desenvolvido e idealizado por Sérgio Andrade</p>
         </div>
     </div>
@@ -145,11 +183,13 @@
             <div class="p-4 m-4 bg-slate-50 rounded-xl border border-slate-100">
                 <div class="flex items-center gap-2 mb-2">
                     <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span class="text-xs font-semibold text-slate-700">Dados Carregados</span>
+                    <span class="text-xs font-semibold text-slate-700">Online | Seguro</span>
                 </div>
-                <p class="text-[10px] text-slate-400">Linhas Processadas:</p>
+                <p class="text-[10px] text-slate-400">Total de Registros:</p>
                 <p class="text-xs font-medium text-slate-600" id="sidebar-total">0</p>
-                <button onclick="resetApp()" class="mt-3 w-full py-1.5 text-xs text-slate-500 border border-slate-200 rounded hover:bg-white hover:text-red-500 transition-colors"><i class="fa-solid fa-rotate-left mr-1"></i> Sair / Novo</button>
+                <button onclick="logout()" class="mt-3 w-full py-1.5 text-xs text-red-500 border border-red-100 bg-red-50 rounded hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair do Sistema
+                </button>
             </div>
         </aside>
 
@@ -161,11 +201,11 @@
                 </div>
                 <div class="flex items-center gap-4 ml-4">
                     <div class="text-right hidden md:block">
-                        <p class="text-[10px] text-slate-400 uppercase tracking-wide">Usuário Logado</p>
-                        <p class="text-sm font-bold text-slate-700" id="header-user-name">Visitante</p>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-wide">Bem-vindo,</p>
+                        <p class="text-sm font-bold text-slate-700" id="header-user-name">Usuário</p>
                     </div>
-                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-primary-500/20">
-                        <i class="fa-solid fa-user"></i>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-md">
+                        <span id="user-initials">US</span>
                     </div>
                 </div>
             </header>
@@ -274,10 +314,52 @@
     </div>
 
     <script>
-        // --- CORE STATE ---
+        // --- CORE STATE & CONSTANTS ---
         let rawData = [];
         let charts = {};
+        const DB_KEY = 'juridico_data_v4';
+        const USER_KEY = 'juridico_user_v4';
+        const DEMO_PASS = "123456"; // Senha padrão
         
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', checkSession);
+
+        function checkSession() {
+            const storedUser = localStorage.getItem(USER_KEY);
+            const storedData = localStorage.getItem(DB_KEY);
+
+            if (storedUser && storedData) {
+                // Sessão encontrada
+                document.getElementById('login-card').classList.add('hidden');
+                document.getElementById('session-card').classList.remove('hidden');
+                document.getElementById('session-card').classList.add('block');
+                document.getElementById('session-user-name').innerText = storedUser;
+            }
+        }
+
+        function restoreSession() {
+            const storedUser = localStorage.getItem(USER_KEY);
+            const storedData = localStorage.getItem(DB_KEY);
+            
+            if (storedUser && storedData) {
+                try {
+                    rawData = JSON.parse(storedData);
+                    document.getElementById('header-user-name').innerText = storedUser;
+                    document.getElementById('user-initials').innerText = storedUser.substring(0,2).toUpperCase();
+                    initDashboard();
+                } catch(e) {
+                    console.error("Erro ao restaurar sessão", e);
+                    logout(); // Corrompido
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem(DB_KEY);
+            localStorage.removeItem(USER_KEY);
+            location.reload();
+        }
+
         // --- UPLOAD HANDLERS ---
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('fileInput');
@@ -298,7 +380,6 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
-                    // Tenta parsear apenas para validar, mas não inicia o dash ainda
                     rawData = []; // Limpa
                     processCSV(e.target.result); // Processa para rawData global
                     
@@ -327,19 +408,24 @@
 
         function startSystem() {
             const name = document.getElementById('userNameInput').value.trim();
+            const pass = document.getElementById('passwordInput').value.trim();
             const hasData = rawData.length > 0;
 
-            if (!name) {
-                showLoginError("Por favor, informe seu nome para continuar.");
-                return;
-            }
-            if (!hasData) {
-                showLoginError("É necessário carregar um arquivo CSV.");
-                return;
+            if (!name) { showLoginError("Informe o usuário."); return; }
+            if (!pass) { showLoginError("Informe a senha."); return; }
+            if (pass !== DEMO_PASS) { showLoginError("Senha incorreta."); return; }
+            if (!hasData) { showLoginError("Carregue o arquivo CSV."); return; }
+
+            // Tudo certo: Salva Sessão e Inicia
+            try {
+                localStorage.setItem(USER_KEY, name);
+                localStorage.setItem(DB_KEY, JSON.stringify(rawData)); // Salva os dados processados
+            } catch(e) {
+                alert("Aviso: O arquivo é muito grande para salvar na memória do navegador. Você precisará carregar novamente se fechar a página.");
             }
 
-            // Tudo certo: Inicia
             document.getElementById('header-user-name').innerText = name;
+            document.getElementById('user-initials').innerText = name.substring(0,2).toUpperCase();
             initDashboard();
         }
 
@@ -352,17 +438,14 @@
 
         // --- ROBUST PARSER V3 (BLINDADO) ---
         function processCSV(text) {
-            // 1. Detectar Separador
             const firstLine = text.substring(0, text.indexOf('\n'));
             const countSemi = (firstLine.match(/;/g) || []).length;
             const countComma = (firstLine.match(/,/g) || []).length;
             const separator = countSemi >= countComma ? ';' : ',';
 
-            // 2. Parser
             const lines = parseCSVBuffer(text, separator);
             if (lines.length < 2) throw new Error("Arquivo vazio ou sem cabeçalho.");
 
-            // 3. Mapeamento
             const headers = lines[0].map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''));
             const map = detectColumns(headers);
 
@@ -370,7 +453,6 @@
                 throw new Error("Colunas 'Advogado' ou 'Cliente' não encontradas.");
             }
 
-            // 4. Extração
             for (let i = 1; i < lines.length; i++) {
                 const cols = lines[i];
                 if (cols.length < 2) continue;
@@ -395,7 +477,6 @@
             }
         }
 
-        // Parser buffer
         function parseCSVBuffer(text, separator) {
             const rows = [];
             let currentRow = [];
@@ -450,7 +531,7 @@
             renderWeight();
         }
 
-        // RENDER FUNCTIONS (IGUAIS ANTERIORMENTE)
+        // RENDER FUNCTIONS (STANDARD)
         function renderOverview() {
             document.getElementById('kpi-total').innerText = rawData.length;
             const lawyerStats = {};
@@ -613,12 +694,11 @@
             document.getElementById('table-weight-detail').innerHTML = html;
         }
 
-        // --- DEMO DATA ---
+        // --- DEMO DATA & UTILS ---
         function loadDemoData() {
-            // Preenche nome
             document.getElementById('userNameInput').value = "Usuário Demo";
+            document.getElementById('passwordInput').value = "123456"; // Auto-fill pass
             
-            // Gera CSV
             let csv = "Responsáveis;Clientes;Status Atual;Peso (1-4);Tipo Tarefa\n";
             const advs = ["Dra. Ana; Dr. Pedro", "Carlos Silva", "Mariana Souza", "Dr. João", "Fernanda Lima"];
             const clis = ["Empresa X", "Banco Y; Seguradora Z", "Comércio ABC", "Indústria Beta"];
@@ -632,13 +712,11 @@
                 csv += `${a};${c};${s};${p};${t}\n`;
             }
             
-            // Simula processo de upload para demo
             rawData = [];
             processCSV(csv);
             
-            // Inicia direto
-            document.getElementById('header-user-name').innerText = "Usuário Demo";
-            initDashboard();
+            // Simula clique no botão "Entrar" para salvar na sessão
+            startSystem();
         }
 
         function switchTab(id) {
