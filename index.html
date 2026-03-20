@@ -42,6 +42,7 @@
             .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; border: 1px solid #e2e8f0; }
             #header-title { font-size: 24px; color: #000; }
             canvas { max-height: 300px !important; }
+            #modal-prazos { display: none !important; }
         }
     </style>
 </head>
@@ -156,7 +157,7 @@
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col min-w-0 bg-[#f8fafc] print:bg-white">
+        <main class="flex-1 flex flex-col min-w-0 bg-[#f8fafc] print:bg-white relative">
             <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10 print:hidden">
                 <div class="flex items-center gap-4 flex-1">
                     <h2 class="text-lg font-semibold text-slate-700 whitespace-nowrap" id="header-title">Visão Geral</h2>
@@ -209,8 +210,8 @@
                 </div>
 
                 <div id="tab-tasks" class="tab-content hidden fade-in space-y-6">
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 class="font-semibold text-slate-700 mb-4">Volume por Tarefa</h3><div class="h-80 relative"><canvas id="chartTasks"></canvas></div></div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Tarefa</th><th class="px-6 py-4 text-center">Quantidade</th><th class="px-6 py-4">Equipe Principal</th></tr></thead><tbody id="table-tasks-detail"></tbody></table></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 class="font-semibold text-slate-700 mb-4">Complexidade das Tarefas</h3><div class="h-80 relative"><canvas id="chartTasks"></canvas></div></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Tipo de Tarefa</th><th class="px-6 py-4 text-center">Quantidade</th><th class="px-6 py-4 text-center">Média Peso</th><th class="px-6 py-4">Equipe Principal</th></tr></thead><tbody id="table-tasks-detail"></tbody></table></div>
                 </div>
 
                 <div id="tab-weight" class="tab-content hidden fade-in space-y-6">
@@ -222,7 +223,7 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                         <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <h3 class="font-semibold text-slate-700">Volume por Tipo de Fluxo</h3>
-                            <span class="text-xs text-slate-400">*Listagem completa por advogado</span>
+                            <span class="text-xs text-slate-400">*Clique no nome do advogado para ver detalhamento de prazos</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm text-left text-slate-600">
@@ -240,8 +241,34 @@
                         </div>
                     </div>
                 </div>
-
             </div>
+
+            <div id="modal-prazos" class="hidden absolute inset-0 bg-slate-900/50 z-[100] flex items-center justify-center p-4 fade-in print:hidden">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+                    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg">Detalhamento de Prazos</h3>
+                            <p class="text-xs font-semibold text-primary-600" id="modal-lawyer-name">Advogado</p>
+                        </div>
+                        <button onclick="closePrazoModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="p-0 overflow-y-auto custom-scrollbar flex-1 rounded-b-2xl">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-400 uppercase bg-slate-100 sticky top-0">
+                                <tr>
+                                    <th class="px-6 py-3">Tarefa Exata</th>
+                                    <th class="px-6 py-3 text-center w-24">Qtd.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-prazos-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -251,8 +278,8 @@
         let filteredData = [];
         let currentWorkbook = null;
         let charts = {};
-        const DB_KEY = 'juridico_data_v9';
-        const USER_KEY = 'juridico_user_v9';
+        const DB_KEY = 'juridico_data_v9_1';
+        const USER_KEY = 'juridico_user_v9_1';
         const DEMO_PASS = "123456";
 
         // --- GLOBAL FUNCTIONS (Hoisted) ---
@@ -285,7 +312,8 @@
             const wb = XLSX.utils.book_new();
             const ws_data = [
                 ["Responsáveis", "Clientes", "Status", "Peso", "Tarefa", "Fluxo"],
-                ["Dr. João", "Empresa A", "Em Andamento", "3", "Petição", "Prazo"],
+                ["Dr. João", "Empresa A", "Em Andamento", "3", "Consultar processo", "Prazo"],
+                ["Dr. João", "Empresa B", "Em Andamento", "2", "Elaborar Petição", "Prazo"],
                 ["Dra. Maria", "Empresa B", "Concluído", "1", "Diário Oficial", "Leitura de Publicação"],
                 ["Dr. Carlos", "Empresa C", "Ativo", "2", "Reunião", "Atividade"]
             ];
@@ -435,7 +463,7 @@
                     else if(h.match(/status|fase|situa/)) map.s = idx;
                     else if(h.match(/tarefa|atividade|tipo/)) map.t = idx;
                     else if(h.match(/peso|complex|score/)) map.p = idx;
-                    else if(h.match(/fluxo|natureza|categoria/)) map.f = idx; // NOVA COLUNA FLUXO
+                    else if(h.match(/fluxo|natureza|categoria/)) map.f = idx;
                 });
                 if(map.a !== -1 || map.c !== -1) { headerIdx = i; break; }
             }
@@ -447,14 +475,12 @@
                 const r = rows[i];
                 if(!r || r.length===0) continue;
                 
-                // Tratamento de Peso
                 let p = 1;
                 if(map.p !== -1 && r[map.p]) {
                     const clean = parseInt(String(r[map.p]).replace(/\D/g,''));
                     if(!isNaN(clean)) p = clean;
                 }
 
-                // Tratamento de Fluxo Inteligente
                 let fVal = map.f !== -1 && r[map.f] ? String(r[map.f]).trim() : "";
                 if (!fVal) { 
                     const tLower = (r[map.t] || "").toString().toLowerCase();
@@ -632,7 +658,6 @@
             el.innerHTML = h;
         }
 
-        // --- NEW FLOW RENDERER ---
         function renderFlow() {
             const el = document.getElementById('table-flow-detail');
             if(!el) return;
@@ -655,8 +680,11 @@
             const s = Object.entries(stats).sort((a,b) => b[1].total - a[1].total);
             let h = "";
             s.forEach(([k, v]) => {
+                // Modificado: Transforma o nome em um botão azul para acionar o Modal
                 h += `<tr class="border-b border-slate-100 hover:bg-slate-50">
-                    <td class="px-6 py-3 font-medium text-slate-700">${k}</td>
+                    <td class="px-6 py-3 font-medium text-slate-700">
+                        <button onclick="openPrazoModal(this.innerText)" class="text-primary-600 hover:text-primary-800 hover:underline text-left cursor-pointer transition-colors">${k}</button>
+                    </td>
                     <td class="px-6 py-3 text-center text-blue-600 font-medium">${v.ativ}</td>
                     <td class="px-6 py-3 text-center text-emerald-600 font-medium">${v.leit}</td>
                     <td class="px-6 py-3 text-center text-red-600 font-medium">${v.praz}</td>
@@ -664,6 +692,45 @@
                 </tr>`;
             });
             el.innerHTML = h;
+        }
+
+        // --- FUNÇÕES DO NOVO MODAL (PRAZOS) ---
+        function openPrazoModal(advogado) {
+            document.getElementById('modal-lawyer-name').innerText = advogado;
+            
+            const prazoTasks = {};
+            
+            // Filtra os dados atuais apenas para Prazos deste advogado
+            filteredData.forEach(r => {
+                const isPrazo = (r.fluxo || "").toLowerCase().includes("prazo");
+                const advs = splitNames(r.advogado);
+                
+                if (isPrazo && advs.includes(advogado)) {
+                    const t = r.tarefa || "Indefinida";
+                    prazoTasks[t] = (prazoTasks[t] || 0) + 1;
+                }
+            });
+
+            const s = Object.entries(prazoTasks).sort((a, b) => b[1] - a[1]);
+            
+            let h = "";
+            if (s.length === 0) {
+                h = `<tr><td colspan="2" class="px-6 py-8 text-center text-slate-400">Nenhum prazo registrado para este(a) profissional.</td></tr>`;
+            } else {
+                s.forEach(([tarefa, qtd]) => {
+                    h += `<tr class="border-b border-slate-100 hover:bg-slate-50">
+                            <td class="px-6 py-3 font-medium text-slate-700">${tarefa}</td>
+                            <td class="px-6 py-3 text-center font-bold text-red-500">${qtd}</td>
+                          </tr>`;
+                });
+            }
+            
+            document.getElementById('modal-prazos-body').innerHTML = h;
+            document.getElementById('modal-prazos').classList.remove('hidden');
+        }
+
+        function closePrazoModal() {
+            document.getElementById('modal-prazos').classList.add('hidden');
         }
 
         // --- UTILS ---
