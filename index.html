@@ -417,7 +417,7 @@
                             }
                         }
                     } else {
-                        processed = processCSV(e.target.result);
+                        processed = processCSV(decodeText(e.target.result));
                     }
 
                     if(processed > 0) {
@@ -435,17 +435,37 @@
                 } catch(err) { alert("Erro: " + err.message); }
             };
             
-            if(ext === 'xlsx' || ext === 'xls') reader.readAsArrayBuffer(file);
-            else reader.readAsText(file, "UTF-8");
+            reader.readAsArrayBuffer(file);
         }
 
         // --- PROCESSING ---
+        // Relatórios de agenda costumam vir em ISO-8859-1/Windows-1252.
+        // Tentamos UTF-8 estrito e, se falhar, caímos para windows-1252.
+        function decodeText(buffer) {
+            const bytes = new Uint8Array(buffer);
+            try {
+                return new TextDecoder('utf-8', {fatal:true}).decode(bytes);
+            } catch(e) {
+                return new TextDecoder('windows-1252').decode(bytes);
+            }
+        }
+
+        function guessDelimiter(text) {
+            const line = text.split(/\r?\n/)[0] || "";
+            const counts = [[';', (line.match(/;/g)||[]).length],
+                            ['\t', (line.match(/\t/g)||[]).length],
+                            ['|', (line.match(/\|/g)||[]).length],
+                            [',', (line.match(/,/g)||[]).length]];
+            counts.sort((a,b) => b[1]-a[1]);
+            return counts[0][1] > 0 ? counts[0][0] : ',';
+        }
+
         function processSheetData(wb, sheetName) {
             const json = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1});
             return parseRawArray(json);
         }
         function processCSV(text) {
-            const wb = XLSX.read(text, {type:'string'});
+            const wb = XLSX.read(text, {type:'string', raw:true, FS:guessDelimiter(text)});
             return processSheetData(wb, wb.SheetNames[0]);
         }
 
@@ -453,19 +473,32 @@
             if(rows.length < 2) return 0;
             let headerIdx = -1, map = {a:-1, c:-1, s:-1, t:-1, p:-1, f:-1};
             
+            // Cada campo tem padrões em ordem de prioridade: o mais específico vence,
+            // e em caso de empate a primeira coluna encontrada é mantida.
+            const PATTERNS = {
+                a: [/^(respons|advogad)/, /^(nome|autor|owner)/, /advogado|respons/],
+                c: [/^clientes?$/, /^(cliente|parte|r[eé]u)/, /cliente|parte|r[eé]u/, /empresa/],
+                s: [/^status$/, /^(status|situa|fase)/, /status|fase|situa/],
+                t: [/^tarefas?$/, /^(tarefa|atividade|tipo)/, /tarefa|atividade|tipo/],
+                p: [/^peso$/, /peso|complex|score/],
+                f: [/^fluxo$/, /fluxo|natureza|categoria/]
+            };
+
             for(let i=0; i<Math.min(rows.length, 15); i++) {
                 const row = rows[i];
+                if(!row) continue;
+                const best = {a:99, c:99, s:99, t:99, p:99, f:99};
+                const found = {a:-1, c:-1, s:-1, t:-1, p:-1, f:-1};
                 row.forEach((cell, idx) => {
                     if(typeof cell !== 'string') return;
                     const h = cell.trim().toLowerCase();
-                    if(h.match(/advogado|respons|nome|autor|owner/)) map.a = idx;
-                    else if(h.match(/cliente|empresa|parte|réu/)) map.c = idx;
-                    else if(h.match(/status|fase|situa/)) map.s = idx;
-                    else if(h.match(/tarefa|atividade|tipo/)) map.t = idx;
-                    else if(h.match(/peso|complex|score/)) map.p = idx;
-                    else if(h.match(/fluxo|natureza|categoria/)) map.f = idx;
+                    if(!h) return;
+                    for(const key in PATTERNS) {
+                        const rank = PATTERNS[key].findIndex(re => re.test(h));
+                        if(rank !== -1 && rank < best[key]) { best[key] = rank; found[key] = idx; }
+                    }
                 });
-                if(map.a !== -1 || map.c !== -1) { headerIdx = i; break; }
+                if(found.a !== -1 || found.c !== -1) { map = found; headerIdx = i; break; }
             }
 
             if(headerIdx === -1) return 0;
