@@ -215,6 +215,16 @@
                 </div>
 
                 <div id="tab-weight" class="tab-content hidden fade-in space-y-6">
+                    <div id="peso-legend" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <h3 class="font-semibold text-slate-700 mb-1">Como o peso é calculado</h3>
+                        <p id="peso-legend-source" class="text-xs text-slate-500 mb-4">Derivado do tipo de tarefa, pois o relatório de agenda não traz coluna de peso.</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded" style="background:#e2e8f0"></span><b class="text-slate-700">P1 · Rotina</b></div><span class="text-slate-500">Leitura de publicação, pagamento, compromisso</span></div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded" style="background:#93c5fd"></span><b class="text-slate-700">P2 · Acompanhamento</b></div><span class="text-slate-500">Ciência, diligência, revisão interna, retorno de audiência</span></div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded" style="background:#fcd34d"></span><b class="text-slate-700">P3 · Peça de resposta</b></div><span class="text-slate-500">Manifestações, contrarrazões, contraminutas, embargos de declaração, audiências</span></div>
+                            <div class="p-3 rounded-xl bg-slate-50 border border-slate-100"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded" style="background:#f87171"></span><b class="text-slate-700">P4 · Peça de fôlego</b></div><span class="text-slate-500">Contestação, recursos, agravos, impugnações a cálculos/laudo, memoriais</span></div>
+                        </div>
+                    </div>
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100"><h3 class="font-semibold text-slate-700 mb-4">Matriz de Complexidade (Todos os Advogados)</h3><div class="h-[500px] relative"><canvas id="chartWeightStacked"></canvas></div></div>
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center bg-slate-100">Peso 1 (Simples)</th><th class="px-6 py-4 text-center bg-blue-50">Peso 2 (Médio)</th><th class="px-6 py-4 text-center bg-amber-50">Peso 3 (Alto)</th><th class="px-6 py-4 text-center bg-red-50">Peso 4 (Crítico)</th><th class="px-6 py-4 text-center">Média</th></tr></thead><tbody id="table-weight-detail"></tbody></table></div>
                 </div>
@@ -277,6 +287,7 @@
         let rawData = [];
         let filteredData = [];
         let currentWorkbook = null;
+        let pesoDaPlanilha = false; // true quando a planilha traz coluna própria de peso
         let charts = {};
         const DB_KEY = 'juridico_data_v9_1';
         const USER_KEY = 'juridico_user_v9_1';
@@ -321,6 +332,7 @@
             XLSX.utils.book_append_sheet(wb, ws, "Dados");
             currentWorkbook = wb;
             
+            pesoDaPlanilha = true;
             rawData = [];
             for(let i=1; i<ws_data.length; i++){
                 const row = ws_data[i];
@@ -438,6 +450,54 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // --- REGRA DE PESO POR TIPO DE TAREFA ---
+        // O relatório de agenda não traz coluna de peso/complexidade, então o peso
+        // é derivado do tipo de tarefa. Se a planilha passar a ter uma coluna
+        // "Peso"/"Complexidade", ela tem prioridade e esta regra não é usada.
+        // Escala: 1 = triagem/rotina | 2 = acompanhamento | 3 = peça de resposta | 4 = peça de fôlego
+        const PESO_LABELS = {
+            1: "Rotina / triagem",
+            2: "Acompanhamento",
+            3: "Peça de resposta",
+            4: "Peça de fôlego"
+        };
+
+        // A ordem importa: a primeira regra que casar define o peso.
+        // Os casos mais específicos vêm antes dos genéricos, para que
+        // "Contrarrazões a Recurso Ordinário" não seja lido como "Recurso Ordinário".
+        const REGRAS_PESO = [
+            [/teste/, 1],
+            [/leitura da public|^public|intima|iniciar fluxo/, 1],
+            [/^ciencia/, 2],
+            [/retorno de audiencia/, 2],
+            [/contrarraz|contra ?-?minuta/, 3],
+            [/embargos de declaracao/, 3],
+            [/impugnacao aos calculos|apresentacao de calculos|impugnacao ao laudo/, 4],
+            [/embargos a execucao|excecao de pre ?-?executividade/, 4],
+            [/consignacao em pagamento/, 4],
+            [/contestacao|recurso ordinario|recurso de revista|agravo|mandado de seguranca|memorial|defesa/, 4],
+            [/impugnacao/, 3],
+            [/manifestacao|parecer|quesitos|excecao de incompetencia|homologacao de acordo/, 3],
+            [/audiencia/, 3],
+            [/diligencia|revisao interna|relatorio/, 2],
+            [/pagamento|compromisso/, 1]
+        ];
+
+        function normalizar(txt) {
+            return String(txt || "")
+                .toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function pesoPorTarefa(tarefa) {
+            const t = normalizar(tarefa);
+            if(!t) return 2;
+            for(const [re, peso] of REGRAS_PESO) { if(re.test(t)) return peso; }
+            return 2; // tipo desconhecido: acompanhamento
+        }
+
         // --- PROCESSING ---
         // Relatórios de agenda costumam vir em ISO-8859-1/Windows-1252.
         // Tentamos UTF-8 estrito e, se falhar, caímos para windows-1252.
@@ -503,16 +563,19 @@
 
             if(headerIdx === -1) return 0;
 
+            pesoDaPlanilha = map.p !== -1;
             rawData = [];
             for(let i=headerIdx+1; i<rows.length; i++) {
                 const r = rows[i];
                 if(!r || r.length===0) continue;
                 
-                let p = 1;
+                let p = null;
                 if(map.p !== -1 && r[map.p]) {
                     const clean = parseInt(String(r[map.p]).replace(/\D/g,''));
                     if(!isNaN(clean)) p = clean;
                 }
+                // Sem coluna de peso na planilha: deriva do tipo de tarefa.
+                if(p === null) p = pesoPorTarefa(r[map.t]);
 
                 let fVal = map.f !== -1 && r[map.f] ? String(r[map.f]).trim() : "";
                 if (!fVal) { 
@@ -672,6 +735,10 @@
         }
 
         function renderWeight() {
+            const srcEl = document.getElementById('peso-legend-source');
+            if(srcEl) srcEl.innerText = pesoDaPlanilha
+                ? "Lido da coluna de peso da própria planilha."
+                : "Derivado do tipo de tarefa, pois o relatório de agenda não traz coluna de peso.";
             if(charts.w) charts.w.destroy();
             const el = document.getElementById('table-weight-detail');
             el.innerHTML=""; if(filteredData.length===0)return;
@@ -679,10 +746,10 @@
             const s = Object.entries(stats).sort((a,b)=>b[1].t - a[1].t);
             const ctx = document.getElementById('chartWeightStacked').getContext('2d');
             charts.w = new Chart(ctx, { type:'bar', data:{ labels:s.map(x=>x[0]), datasets:[
-                {label:'P1',data:s.map(x=>x[1].p[1]),backgroundColor:'#e2e8f0'},
-                {label:'P2',data:s.map(x=>x[1].p[2]),backgroundColor:'#93c5fd'},
-                {label:'P3',data:s.map(x=>x[1].p[3]),backgroundColor:'#fcd34d'},
-                {label:'P4',data:s.map(x=>x[1].p[4]),backgroundColor:'#f87171'}
+                {label:'P1 · '+PESO_LABELS[1],data:s.map(x=>x[1].p[1]),backgroundColor:'#e2e8f0'},
+                {label:'P2 · '+PESO_LABELS[2],data:s.map(x=>x[1].p[2]),backgroundColor:'#93c5fd'},
+                {label:'P3 · '+PESO_LABELS[3],data:s.map(x=>x[1].p[3]),backgroundColor:'#fcd34d'},
+                {label:'P4 · '+PESO_LABELS[4],data:s.map(x=>x[1].p[4]),backgroundColor:'#f87171'}
             ]}, options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true}}} });
             let h=""; s.forEach(([k,v])=>{ 
                 const avg = (v.w/v.t).toFixed(2);
