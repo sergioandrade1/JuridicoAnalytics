@@ -10,6 +10,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <script>
@@ -34,6 +37,15 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hover-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
         .sheet-btn.active { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+        /* --- Módulo Financeiro: vinho #960018 / dourado #D4AF37 / vinho escuro #4A0404 --- */
+        .nav-item.fin-nav.active { background-color: rgba(150,0,24,0.08); color: #960018; border-right-color: #D4AF37; }
+        .fin-label { display:block; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+        .fin-input { width:100%; padding:9px 12px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; font-size:13px; color:#334155; outline:none; transition:all .15s; }
+        .fin-input:focus { background:#fff; border-color:#D4AF37; box-shadow:0 0 0 3px rgba(212,175,55,.18); }
+        .fin-input-sm { padding:6px 10px; border:1px solid #e2e8f0; border-radius:8px; background:#fff; font-size:12px; color:#475569; outline:none; cursor:pointer; }
+        .fin-input-sm:focus { border-color:#D4AF37; }
+        .fin-painel-table { min-width:1400px; border-collapse:separate; border-spacing:0; }
+        .fin-painel-table th, .fin-painel-table td { white-space:nowrap; }
         
         @media print {
             aside, #global-search-container, #print-btn, #view-upload, #statusFilter, .filters-area { display: none !important; }
@@ -97,13 +109,12 @@
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 to-primary-600"></div>
             <div class="space-y-5">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Login / Usuário</label>
-                    <div class="relative"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" id="userNameInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 outline-none transition-all placeholder-slate-400 text-sm" placeholder="Ex: admsilva"></div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">E-mail</label>
+                    <div class="relative"><i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="email" id="userNameInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 outline-none transition-all placeholder-slate-400 text-sm" placeholder="voce@escritorio.com.br"></div>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Senha</label>
                     <div class="relative"><i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="password" id="passwordInput" class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-100 outline-none transition-all placeholder-slate-400 text-sm" placeholder="••••••••"></div>
-                    <p class="text-[10px] text-slate-400 mt-1 text-right">Senha padrão: <span class="font-mono text-slate-500">123456</span></p>
                 </div>
                 <div class="h-px bg-slate-100 my-4"></div>
                 <div>
@@ -124,7 +135,10 @@
                 <button onclick="startSystem()" class="w-full py-3 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"><span>Entrar no Sistema</span><i class="fa-solid fa-arrow-right-to-bracket"></i></button>
                 <div id="login-error" class="hidden p-3 bg-red-50 text-red-600 text-xs rounded-lg text-center border border-red-100 flex items-center justify-center gap-2 animate-pulse"><i class="fa-solid fa-triangle-exclamation"></i><span id="login-error-text">Erro.</span></div>
             </div>
-            <div class="mt-4 text-center"><button onclick="loadDemoData()" class="text-xs text-slate-400 hover:text-primary-600 font-medium">Usar demonstração</button></div>
+            <div class="mt-4 text-center space-y-2">
+                <button onclick="entrarFinanceiro()" class="text-xs font-semibold text-[#960018] hover:text-[#4A0404]"><i class="fa-solid fa-coins mr-1"></i> Entrar apenas no Financeiro (dispensa planilha)</button>
+                <div><button onclick="loadDemoData()" class="text-xs text-slate-400 hover:text-primary-600 font-medium">Usar demonstração</button></div>
+            </div>
         </div>
         <div class="mt-8 text-center">
             <p class="text-xs text-slate-400">© 2026 Juridico Analytics. Acesso Seguro.</p>
@@ -147,6 +161,15 @@
                 <button onclick="switchTab('weight')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-scale-unbalanced w-5 text-center"></i> Carga & Peso</button>
                 <button onclick="switchTab('flow')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-all"><i class="fa-solid fa-code-branch w-5 text-center"></i> Fluxo</button>
                 
+                <div class="mt-6 pt-4 border-t border-slate-100">
+                    <p class="px-3 text-xs font-semibold text-[#960018] uppercase tracking-wider mb-2">Financeiro</p>
+                    <button onclick="switchTab('fin-painel')" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-[#960018]/5 transition-all"><i class="fa-solid fa-handshake w-5 text-center"></i> Painel de Parcerias</button>
+                    <button onclick="switchTab('fin-lancamentos')" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-[#960018]/5 transition-all"><i class="fa-solid fa-money-bill-transfer w-5 text-center"></i> Lançamentos</button>
+                    <button onclick="switchTab('fin-parceiros')" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-[#960018]/5 transition-all"><i class="fa-solid fa-address-book w-5 text-center"></i> Parceiros</button>
+                    <button onclick="switchTab('fin-import')" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-[#960018]/5 transition-all"><i class="fa-solid fa-file-import w-5 text-center"></i> Importar planilha</button>
+                    <p class="px-3 mt-2 text-[10px] text-slate-400">Sessão: <span id="fin-auth-state">—</span></p>
+                </div>
+
                 <div id="sheets-container" class="hidden mt-6 pt-4 border-t border-slate-100"><p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Abas da Planilha</p><div id="sheets-list" class="space-y-1 px-1"></div></div>
             </div>
             <div class="p-4 m-4 bg-slate-50 rounded-xl border border-slate-100 shrink-0">
@@ -219,6 +242,168 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><table class="w-full text-sm text-left text-slate-600"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-6 py-4">Advogado</th><th class="px-6 py-4 text-center bg-slate-100">Peso 1 (Simples)</th><th class="px-6 py-4 text-center bg-blue-50">Peso 2 (Médio)</th><th class="px-6 py-4 text-center bg-amber-50">Peso 3 (Alto)</th><th class="px-6 py-4 text-center bg-red-50">Peso 4 (Crítico)</th><th class="px-6 py-4 text-center">Média</th></tr></thead><tbody id="table-weight-detail"></tbody></table></div>
                 </div>
 
+                <!-- ================= FINANCEIRO / CONTROLADORIA ================= -->
+
+                <div id="tab-fin-painel" class="tab-content hidden fade-in space-y-6">
+                    <div class="fin-scope bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-[#960018]/5 flex flex-wrap justify-between items-center gap-3">
+                            <div>
+                                <h3 class="font-bold text-[#4A0404] text-base">Painel de Parcerias</h3>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Distribuído = Repasse + Saída + Despesa Conta PF nas categorias 2.02.001 e 2.02.002. Recebimento de repasse não conta (regra de perna única).</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <select id="fin-painel-ano" onchange="finSetAno(this.value)" class="appearance-none bg-white border border-slate-200 text-slate-700 text-sm rounded-lg py-1.5 px-3 outline-none focus:ring-2 focus:ring-[#D4AF37]/40 cursor-pointer font-medium"></select>
+                                <button onclick="finExportPainel()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-[#960018]/20 text-[#960018] hover:bg-[#960018]/5 transition-colors flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> Exportar</button>
+                                <button onclick="finLoadAno()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-2"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+                            </div>
+                        </div>
+                        <div id="fin-painel-alertas" class="hidden px-4 py-2 bg-red-50 border-b border-red-100 text-xs text-red-700 font-medium"></div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="text-sm text-left text-slate-600 fin-painel-table">
+                                <thead id="fin-painel-head" class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"></thead>
+                                <tbody id="fin-painel-body" class="divide-y divide-slate-100"></tbody>
+                                <tfoot id="fin-painel-foot" class="bg-[#4A0404] text-white text-xs font-bold"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-fin-lancamentos" class="tab-content hidden fade-in space-y-6">
+                    <div class="fin-scope grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
+                            <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
+                                <h3 class="font-bold text-[#4A0404] text-base" id="fin-lanc-form-title">Novo Lançamento</h3>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Parceiro é escolhido na lista — nunca digitado.</p>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                <input type="hidden" id="fin-lanc-id">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="fin-label">Data</label>
+                                        <input type="date" id="fin-lanc-data" class="fin-input">
+                                    </div>
+                                    <div>
+                                        <label class="fin-label">Valor (R$)</label>
+                                        <input type="number" step="0.01" min="0" id="fin-lanc-valor" oninput="finPreviewLimite()" class="fin-input" placeholder="0,00">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="fin-label">Tipo</label>
+                                    <select id="fin-lanc-tipo" onchange="finPreviewLimite()" class="fin-input"></select>
+                                </div>
+                                <div>
+                                    <label class="fin-label">Categoria</label>
+                                    <select id="fin-lanc-categoria" onchange="finPreviewLimite()" class="fin-input"></select>
+                                </div>
+                                <div>
+                                    <label class="fin-label">Parceiro</label>
+                                    <select id="fin-lanc-parceiro" onchange="finPreviewLimite()" class="fin-input"></select>
+                                </div>
+                                <div>
+                                    <label class="fin-label">Descrição</label>
+                                    <input type="text" id="fin-lanc-descricao" class="fin-input" placeholder="Histórico do movimento">
+                                </div>
+                                <div id="fin-lanc-alerta" class="hidden text-xs rounded-lg p-3 border"></div>
+                                <div id="fin-lanc-erro" class="hidden text-xs rounded-lg p-3 border border-red-100 bg-red-50 text-red-600"></div>
+                                <div class="flex gap-2 pt-1">
+                                    <button onclick="finSalvarLancamento()" id="fin-lanc-save" class="flex-1 py-2.5 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                                    <button onclick="finResetLancamentoForm()" class="py-2.5 px-4 border border-slate-200 text-slate-500 text-sm rounded-xl hover:bg-slate-50 transition-colors">Limpar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-2">
+                                <h3 class="font-bold text-[#4A0404] text-base mr-auto">Lançamentos</h3>
+                                <select id="fin-filtro-mes" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
+                                <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
+                                <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
+                            </div>
+                            <div class="overflow-x-auto custom-scrollbar max-h-[70vh]">
+                                <table class="w-full text-sm text-left text-slate-600">
+                                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-3">Data</th>
+                                            <th class="px-4 py-3">Tipo</th>
+                                            <th class="px-4 py-3">Parceiro</th>
+                                            <th class="px-4 py-3">Categoria</th>
+                                            <th class="px-4 py-3 text-right">Valor</th>
+                                            <th class="px-4 py-3 w-20"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fin-lanc-body" class="divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-fin-parceiros" class="tab-content hidden fade-in space-y-6">
+                    <div class="fin-scope grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
+                            <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
+                                <h3 class="font-bold text-[#4A0404] text-base" id="fin-parc-form-title">Novo Parceiro</h3>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                <input type="hidden" id="fin-parc-id">
+                                <div>
+                                    <label class="fin-label">Nome</label>
+                                    <input type="text" id="fin-parc-nome" class="fin-input" placeholder="Nome do parceiro">
+                                </div>
+                                <div>
+                                    <label class="fin-label">Limite mensal (R$)</label>
+                                    <input type="number" step="0.01" min="0" id="fin-parc-limite" class="fin-input" value="50000">
+                                </div>
+                                <label class="flex items-center gap-2 text-sm text-slate-600 pt-1">
+                                    <input type="checkbox" id="fin-parc-ativo" checked class="rounded border-slate-300 text-[#960018] focus:ring-[#D4AF37]/40"> Ativo
+                                </label>
+                                <div id="fin-parc-erro" class="hidden text-xs rounded-lg p-3 border border-red-100 bg-red-50 text-red-600"></div>
+                                <div class="flex gap-2 pt-1">
+                                    <button onclick="finSalvarParceiro()" class="flex-1 py-2.5 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                                    <button onclick="finResetParceiroForm()" class="py-2.5 px-4 border border-slate-200 text-slate-500 text-sm rounded-xl hover:bg-slate-50 transition-colors">Limpar</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                                <h3 class="font-bold text-[#4A0404] text-base">Parceiros cadastrados</h3>
+                            </div>
+                            <div class="overflow-x-auto custom-scrollbar">
+                                <table class="w-full text-sm text-left text-slate-600">
+                                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
+                                        <tr>
+                                            <th class="px-4 py-3">Nome</th>
+                                            <th class="px-4 py-3 text-right">Limite mensal</th>
+                                            <th class="px-4 py-3 text-center">Situação</th>
+                                            <th class="px-4 py-3 w-24"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fin-parc-body" class="divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-fin-import" class="tab-content hidden fade-in space-y-6">
+                    <div class="fin-scope bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
+                            <h3 class="font-bold text-[#4A0404] text-base">Importar Fluxo de Caixa (migração única)</h3>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Abas mensais com colunas Data | Tipo | Movimento | Categoria | Valor | Saldo. Antes de gravar você concilia cada movimento com um parceiro cadastrado.</p>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div id="fin-import-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:bg-slate-50 hover:border-[#D4AF37] transition-all">
+                                <input type="file" id="fin-import-file" class="hidden" accept=".xlsx, .xls">
+                                <i class="fa-solid fa-file-arrow-up text-3xl text-slate-300 mb-2"></i>
+                                <p class="text-sm font-medium text-slate-600">Selecione Fluxo_de_Caixa_2026.xlsx</p>
+                            </div>
+                            <div id="fin-import-resumo" class="hidden text-sm text-slate-600"></div>
+                            <div id="fin-import-conciliacao" class="hidden space-y-3"></div>
+                            <div id="fin-import-status" class="hidden text-xs rounded-lg p-3 border"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="tab-flow" class="tab-content hidden fade-in space-y-6">
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                         <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -283,12 +468,48 @@
         const DEMO_PASS = "123456";
 
         // --- GLOBAL FUNCTIONS (Hoisted) ---
-        function startSystem() {
+        // Autenticação real via Firebase Auth (usuários provisionados no console).
+        async function finSignIn(email, senha) {
+            if (!finInitFirebase()) throw new Error("Firebase não configurado neste build.");
+            const cred = await FIN.auth.signInWithEmailAndPassword(email, senha);
+            return cred.user;
+        }
+
+        function finAuthErro(e) {
+            const map = {
+                'auth/invalid-email': 'E-mail inválido.',
+                'auth/user-not-found': 'Usuário não encontrado.',
+                'auth/wrong-password': 'Senha incorreta.',
+                'auth/invalid-credential': 'E-mail ou senha incorretos.',
+                'auth/too-many-requests': 'Muitas tentativas. Tente novamente em alguns minutos.',
+                'auth/network-request-failed': 'Falha de rede.'
+            };
+            return map[e.code] || (e.message || 'Falha na autenticação.');
+        }
+
+        // Acesso direto ao módulo Financeiro, sem exigir upload de planilha.
+        async function entrarFinanceiro() {
+            const email = document.getElementById('userNameInput').value.trim();
+            const pass = document.getElementById('passwordInput').value;
+            if (!email || !pass) { showError("Informe e-mail e senha."); return; }
+            try {
+                const user = await finSignIn(email, pass);
+                localStorage.setItem(USER_KEY, user.email);
+                rawData = [];
+                loginSuccess(user.email);
+                document.querySelectorAll('.nav-item:not(.fin-nav)').forEach(b => b.classList.add('hidden'));
+                document.querySelector(".nav-item.fin-nav").click();
+            } catch (e) { showError(finAuthErro(e)); }
+        }
+
+        async function startSystem() {
             const name = document.getElementById('userNameInput').value.trim();
-            const pass = document.getElementById('passwordInput').value.trim();
-            if (!name || !pass) { showError("Preencha login e senha."); return; }
-            if (pass !== DEMO_PASS) { showError("Senha incorreta."); return; }
+            const pass = document.getElementById('passwordInput').value;
+            if (!name || !pass) { showError("Preencha e-mail e senha."); return; }
             if (rawData.length === 0) { showError("Carregue o arquivo."); return; }
+            try {
+                await finSignIn(name, pass);
+            } catch (e) { showError(finAuthErro(e)); return; }
             localStorage.setItem(USER_KEY, name);
             try { localStorage.setItem(DB_KEY, JSON.stringify(rawData)); } catch(e){}
             loginSuccess(name);
@@ -330,7 +551,11 @@
                 });
             }
             
-            startSystem();
+            // Demonstração roda sem Firebase Auth: só as abas de processos, o
+            // Financeiro continua exigindo sessão real (finRequire).
+            localStorage.setItem(USER_KEY, "Usuário Demo");
+            try { localStorage.setItem(DB_KEY, JSON.stringify(rawData)); } catch(e){}
+            loginSuccess("Usuário Demo");
         }
 
         function switchTab(id) { 
@@ -338,8 +563,10 @@
             document.getElementById('tab-'+id).classList.remove('hidden'); 
             document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active')); 
             event.currentTarget.classList.add('active'); 
-            const titles = {overview:"Visão Geral",lawyers:"Análise por Advogado",clients:"Análise de Clientes",tasks:"Tarefas",weight:"Carga de Trabalho",flow:"Análise de Fluxo"};
+            const titles = {overview:"Visão Geral",lawyers:"Análise por Advogado",clients:"Análise de Clientes",tasks:"Tarefas",weight:"Carga de Trabalho",flow:"Análise de Fluxo",
+                "fin-painel":"Painel de Parcerias","fin-lancamentos":"Lançamentos","fin-parceiros":"Parceiros","fin-import":"Importar Fluxo de Caixa"};
             document.getElementById('header-title').innerText = titles[id] || "Dashboard"; 
+            if (id.indexOf('fin-') === 0) finOnTab(id);
         }
 
         function resetApp() { location.reload(); }
@@ -373,7 +600,10 @@
         }
 
         function newAnalysis() { localStorage.removeItem(DB_KEY); location.reload(); }
-        function logout() { localStorage.removeItem(DB_KEY); localStorage.removeItem(USER_KEY); location.reload(); }
+        function logout() {
+            try { if (FIN.ready && FIN.auth) FIN.auth.signOut(); } catch(e) {}
+            localStorage.removeItem(DB_KEY); localStorage.removeItem(USER_KEY); location.reload();
+        }
 
         function loginSuccess(name) {
             if(document.getElementById('header-user-name')) {
@@ -774,6 +1004,797 @@
                btns.forEach(b => { b.classList.remove('active'); if(b.innerText.includes(name)) b.classList.add('active'); }); 
             }, 100);
         }
+
+        /* ==================================================================
+           MÓDULO FINANCEIRO / CONTROLADORIA — Painel de Parcerias
+           Dados em Firestore (multiusuário + histórico), não em localStorage.
+           ================================================================== */
+
+        // >>> COLE AQUI a config do seu projeto Firebase (Console > Config. do projeto) <<<
+        const firebaseConfig = {
+            apiKey: "",
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
+        };
+
+        const FIN_TIPOS = ["Entrada","Saída","Repasse","Recebimento Repasse","Despesa Conta PF","Espécie"];
+        // Tipos que caracterizam distribuição ao parceiro (regra de perna única:
+        // "Recebimento Repasse" e tipo vazio ficam de fora para não contar duas vezes).
+        const FIN_TIPOS_DISTRIB = ["Repasse","Saída","Despesa Conta PF"];
+        const FIN_CATEGORIAS = [
+            "1.01.001 - Honorários Contratuais",
+            "1.01.002 - Honorários de Êxito",
+            "1.02.001 - Outras Receitas",
+            "2.01.001 - Folha e Pró-labore",
+            "2.01.002 - Aluguel e Condomínio",
+            "2.01.003 - Despesas Administrativas",
+            "2.02.001 - Parceria Jurídica",
+            "2.02.002 - Honorários Fixos",
+            "2.03.001 - Impostos e Taxas",
+            "3.01.001 - Movimentação Interna"
+        ];
+        // Só estas duas entram no Painel de Parcerias.
+        const FIN_CATEGORIAS_PARCERIA = ["2.02.001 - Parceria Jurídica","2.02.002 - Honorários Fixos"];
+        const FIN_LIMITE_PADRAO = 50000;
+        const FIN_MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+        const FIN = {
+            db: null, auth: null, user: null, ready: false,
+            ano: new Date().getFullYear(),
+            parceiros: [],      // todos os parceiros
+            lancamentos: [],    // apenas do ano selecionado
+            importBuffer: null
+        };
+
+        // ---------- helpers ----------
+        function finBRL(v) {
+            return (Number(v) || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+        }
+        function finNorm(s) {
+            return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+        function finParceiroById(id) {
+            return FIN.parceiros.find(p => p.id === id) || null;
+        }
+        function finLimite(p) {
+            const n = Number(p && p.limiteMensal);
+            return (isFinite(n) && n > 0) ? n : FIN_LIMITE_PADRAO;
+        }
+        function finMsg(el, texto, tipo) {
+            const box = document.getElementById(el);
+            if (!box) return;
+            if (!texto) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+            const skin = tipo === 'erro'  ? 'border-red-100 bg-red-50 text-red-600'
+                       : tipo === 'alerta'? 'border-amber-200 bg-amber-50 text-amber-700'
+                       :                    'border-emerald-100 bg-emerald-50 text-emerald-700';
+            box.className = 'text-xs rounded-lg p-3 border ' + skin;
+            box.innerHTML = texto;
+            box.classList.remove('hidden');
+        }
+
+        // ---------- bootstrap Firebase ----------
+        function finInitFirebase() {
+            if (FIN.ready) return true;
+            if (typeof firebase === 'undefined' || !firebaseConfig.apiKey || !firebaseConfig.projectId) {
+                return false;
+            }
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            FIN.auth = firebase.auth();
+            FIN.db = firebase.firestore();
+            FIN.ready = true;
+            FIN.auth.onAuthStateChanged(u => {
+                FIN.user = u;
+                const el = document.getElementById('fin-auth-state');
+                if (el) el.innerText = u ? u.email : 'não autenticado';
+            });
+            return true;
+        }
+
+        function finRequire() {
+            if (!finInitFirebase()) {
+                alert('Firebase não configurado: preencha a constante firebaseConfig no topo do script.');
+                return false;
+            }
+            if (!FIN.auth.currentUser) {
+                alert('Sessão expirada. Faça login novamente.');
+                return false;
+            }
+            return true;
+        }
+
+        // ---------- carga de dados ----------
+        async function finLoadParceiros() {
+            const snap = await FIN.db.collection('parceiros').get();
+            FIN.parceiros = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+            FIN.parceiros.sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+        }
+
+        async function finLoadLancamentos(ano) {
+            const snap = await FIN.db.collection('lancamentos').where('ano', '==', Number(ano)).get();
+            FIN.lancamentos = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+            FIN.lancamentos.sort((a, b) => (a.mes - b.mes) || String(a.data).localeCompare(String(b.data)));
+        }
+
+        async function finLoadAno() {
+            if (!finRequire()) return;
+            try {
+                await finLoadParceiros();
+                await finLoadLancamentos(FIN.ano);
+                finRenderPainel();
+                finRenderParceiros();
+                finPopulaSelects();
+                finRenderLancamentos();
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao carregar dados do Firestore: ' + e.message);
+            }
+        }
+
+        function finSetAno(ano) {
+            FIN.ano = Number(ano);
+            finLoadAno();
+        }
+
+        function finPopulaAnos() {
+            const sel = document.getElementById('fin-painel-ano');
+            if (!sel || sel.options.length) return;
+            const atual = new Date().getFullYear();
+            for (let a = atual + 1; a >= atual - 5; a--) {
+                sel.insertAdjacentHTML('beforeend', `<option value="${a}" ${a === FIN.ano ? 'selected' : ''}>${a}</option>`);
+            }
+        }
+
+        // ---------- REGRA DO PAINEL ----------
+        // Distribuído(parceiro, mês) = Σ valor onde
+        //   parceiroId = parceiro
+        //   E categoria ∈ {2.02.001, 2.02.002}
+        //   E tipo ∈ {Repasse, Saída, Despesa Conta PF}
+        // Tipo vazio e "Recebimento Repasse" são ignorados de propósito.
+        function finCalcPainel() {
+            const linhas = FIN.parceiros.map(p => ({
+                parceiro: p,
+                limite: finLimite(p),
+                distribuido: new Array(12).fill(0)
+            }));
+            const idx = {};
+            linhas.forEach((l, i) => { idx[l.parceiro.id] = i; });
+
+            FIN.lancamentos.forEach(l => {
+                if (!l.parceiroId || !(l.parceiroId in idx)) return;
+                if (FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) === -1) return;
+                if (FIN_TIPOS_DISTRIB.indexOf(l.tipo) === -1) return;
+                const m = Number(l.mes);
+                if (!(m >= 1 && m <= 12)) return;
+                linhas[idx[l.parceiroId]].distribuido[m - 1] += Number(l.valor) || 0;
+            });
+
+            linhas.forEach(l => {
+                l.disponivel = l.distribuido.map(v => l.limite - v);
+                l.estouro = l.distribuido.map(v => v > l.limite);
+            });
+            return linhas;
+        }
+
+        function finRenderPainel() {
+            finPopulaAnos();
+            const head = document.getElementById('fin-painel-head');
+            const body = document.getElementById('fin-painel-body');
+            const foot = document.getElementById('fin-painel-foot');
+            if (!head) return;
+
+            head.innerHTML = `<tr>
+                <th class="px-4 py-3 sticky left-0 bg-slate-50 z-10 min-w-[200px]">Parceiro</th>
+                ${FIN_MESES.map(m => `<th class="px-3 py-3 text-center border-l border-slate-100 min-w-[120px]">${m}</th>`).join('')}
+                <th class="px-4 py-3 text-center border-l-2 border-[#D4AF37] bg-[#D4AF37]/10 min-w-[130px]">Ano</th>
+            </tr>`;
+
+            const linhas = finCalcPainel();
+            if (!linhas.length) {
+                body.innerHTML = `<tr><td colspan="14" class="px-4 py-10 text-center text-slate-400 text-sm">Nenhum parceiro cadastrado. Comece pela aba Parceiros.</td></tr>`;
+                foot.innerHTML = '';
+                document.getElementById('fin-painel-alertas').classList.add('hidden');
+                return;
+            }
+
+            const totDist = new Array(12).fill(0);
+            const totDisp = new Array(12).fill(0);
+            const estouros = [];
+
+            body.innerHTML = linhas.map(l => {
+                const cells = l.distribuido.map((v, i) => {
+                    totDist[i] += v;
+                    totDisp[i] += l.disponivel[i];
+                    if (l.estouro[i]) estouros.push(`${l.parceiro.nome} (${FIN_MESES[i]})`);
+                    const cor = l.estouro[i] ? 'text-red-600 font-bold' : 'text-slate-700';
+                    const corDisp = l.disponivel[i] < 0 ? 'text-red-500' : 'text-emerald-600';
+                    const bg = l.estouro[i] ? 'bg-red-50' : '';
+                    return `<td class="px-3 py-2 text-right border-l border-slate-100 ${bg}">
+                        <div class="${cor} text-xs">${finBRL(v)}</div>
+                        <div class="${corDisp} text-[10px]">${finBRL(l.disponivel[i])}</div>
+                    </td>`;
+                }).join('');
+                const anoDist = l.distribuido.reduce((a, b) => a + b, 0);
+                return `<tr class="hover:bg-slate-50/60">
+                    <td class="px-4 py-2 sticky left-0 bg-white z-10 font-medium text-slate-700">
+                        ${l.parceiro.nome}
+                        ${l.parceiro.ativo === false ? '<span class="ml-2 text-[10px] text-slate-400">(inativo)</span>' : ''}
+                        <div class="text-[10px] text-slate-400 font-normal">limite ${finBRL(l.limite)}/mês</div>
+                    </td>
+                    ${cells}
+                    <td class="px-4 py-2 text-right border-l-2 border-[#D4AF37] bg-[#D4AF37]/5 font-bold text-xs text-[#4A0404]">${finBRL(anoDist)}</td>
+                </tr>`;
+            }).join('');
+
+            foot.innerHTML = `<tr>
+                <td class="px-4 py-3 sticky left-0 bg-[#4A0404] z-10">TOTAL</td>
+                ${totDist.map((v, i) => `<td class="px-3 py-3 text-right border-l border-white/10">
+                    <div>${finBRL(v)}</div>
+                    <div class="text-[10px] font-normal text-[#D4AF37]">${finBRL(totDisp[i])}</div>
+                </td>`).join('')}
+                <td class="px-4 py-3 text-right border-l-2 border-[#D4AF37]">${finBRL(totDist.reduce((a, b) => a + b, 0))}</td>
+            </tr>`;
+
+            const alertas = document.getElementById('fin-painel-alertas');
+            if (estouros.length) {
+                alertas.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i>Limite estourado em: ${estouros.join(', ')}.`;
+                alertas.classList.remove('hidden');
+            } else {
+                alertas.classList.add('hidden');
+            }
+        }
+
+        function finExportPainel() {
+            const linhas = finCalcPainel();
+            if (!linhas.length) { alert('Nada para exportar.'); return; }
+            const head = ['Parceiro', 'Limite mensal'];
+            FIN_MESES.forEach(m => { head.push(m + ' Distribuído', m + ' Disponível'); });
+            const aoa = [head];
+            const totD = new Array(12).fill(0), totA = new Array(12).fill(0);
+            linhas.forEach(l => {
+                const row = [l.parceiro.nome, l.limite];
+                l.distribuido.forEach((v, i) => {
+                    row.push(v, l.disponivel[i]);
+                    totD[i] += v; totA[i] += l.disponivel[i];
+                });
+                aoa.push(row);
+            });
+            const tot = ['TOTAL', ''];
+            totD.forEach((v, i) => tot.push(v, totA[i]));
+            aoa.push(tot);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Parcerias ' + FIN.ano);
+            XLSX.writeFile(wb, `Painel_Parcerias_${FIN.ano}.xlsx`);
+        }
+
+        // ---------- CRUD PARCEIROS ----------
+        function finRenderParceiros() {
+            const body = document.getElementById('fin-parc-body');
+            if (!body) return;
+            if (!FIN.parceiros.length) {
+                body.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum parceiro cadastrado.</td></tr>`;
+                return;
+            }
+            body.innerHTML = FIN.parceiros.map(p => `<tr class="hover:bg-slate-50/60">
+                <td class="px-4 py-3 font-medium text-slate-700">${p.nome}</td>
+                <td class="px-4 py-3 text-right">${finBRL(finLimite(p))}</td>
+                <td class="px-4 py-3 text-center">
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-full ${p.ativo === false ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}">${p.ativo === false ? 'INATIVO' : 'ATIVO'}</span>
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap">
+                    <button onclick="finEditParceiro('${p.id}')" class="text-slate-400 hover:text-[#960018] px-1" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="finExcluirParceiro('${p.id}')" class="text-slate-400 hover:text-red-500 px-1" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`).join('');
+        }
+
+        function finResetParceiroForm() {
+            document.getElementById('fin-parc-id').value = '';
+            document.getElementById('fin-parc-nome').value = '';
+            document.getElementById('fin-parc-limite').value = FIN_LIMITE_PADRAO;
+            document.getElementById('fin-parc-ativo').checked = true;
+            document.getElementById('fin-parc-form-title').innerText = 'Novo Parceiro';
+            finMsg('fin-parc-erro', '');
+        }
+
+        function finEditParceiro(id) {
+            const p = finParceiroById(id);
+            if (!p) return;
+            document.getElementById('fin-parc-id').value = p.id;
+            document.getElementById('fin-parc-nome').value = p.nome || '';
+            document.getElementById('fin-parc-limite').value = finLimite(p);
+            document.getElementById('fin-parc-ativo').checked = p.ativo !== false;
+            document.getElementById('fin-parc-form-title').innerText = 'Editar Parceiro';
+            finMsg('fin-parc-erro', '');
+        }
+
+        async function finSalvarParceiro() {
+            if (!finRequire()) return;
+            const id = document.getElementById('fin-parc-id').value;
+            const nome = document.getElementById('fin-parc-nome').value.trim().replace(/\s+/g, ' ');
+            const limite = parseFloat(document.getElementById('fin-parc-limite').value);
+            const ativo = document.getElementById('fin-parc-ativo').checked;
+
+            if (!nome) { finMsg('fin-parc-erro', 'Informe o nome do parceiro.', 'erro'); return; }
+            if (!isFinite(limite) || limite < 0) { finMsg('fin-parc-erro', 'Limite mensal inválido.', 'erro'); return; }
+            const dup = FIN.parceiros.find(p => finNorm(p.nome) === finNorm(nome) && p.id !== id);
+            if (dup) { finMsg('fin-parc-erro', 'Já existe um parceiro com esse nome.', 'erro'); return; }
+
+            const payload = {
+                nome: nome,
+                nomeNorm: finNorm(nome),
+                ativo: ativo,
+                limiteMensal: limite,
+                atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                atualizadoPor: FIN.user ? FIN.user.email : null
+            };
+            try {
+                if (id) {
+                    await FIN.db.collection('parceiros').doc(id).update(payload);
+                } else {
+                    payload.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+                    payload.criadoPor = FIN.user ? FIN.user.email : null;
+                    await FIN.db.collection('parceiros').add(payload);
+                }
+                finResetParceiroForm();
+                await finLoadAno();
+            } catch (e) {
+                finMsg('fin-parc-erro', 'Erro ao salvar: ' + e.message, 'erro');
+            }
+        }
+
+        async function finExcluirParceiro(id) {
+            if (!finRequire()) return;
+            const p = finParceiroById(id);
+            if (!p) return;
+            // Não deixa órfão: lançamento apontando para parceiro inexistente some do painel.
+            const snap = await FIN.db.collection('lancamentos').where('parceiroId', '==', id).limit(1).get();
+            if (!snap.empty) {
+                alert(`"${p.nome}" tem lançamentos vinculados e não pode ser excluído. Desmarque "Ativo" para tirá-lo do dropdown mantendo o histórico.`);
+                return;
+            }
+            if (!confirm(`Excluir o parceiro "${p.nome}"?`)) return;
+            await FIN.db.collection('parceiros').doc(id).delete();
+            await finLoadAno();
+        }
+
+        // ---------- CRUD LANÇAMENTOS ----------
+        function finPopulaSelects() {
+            const ativos = FIN.parceiros.filter(p => p.ativo !== false);
+            const optParc = ativos.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+
+            const selP = document.getElementById('fin-lanc-parceiro');
+            if (selP) {
+                const atual = selP.value;
+                selP.innerHTML = `<option value="">— sem parceiro —</option>` + optParc;
+                selP.value = atual;
+            }
+            const selT = document.getElementById('fin-lanc-tipo');
+            if (selT && !selT.options.length) {
+                selT.innerHTML = `<option value="">— selecione —</option>` + FIN_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+            const selC = document.getElementById('fin-lanc-categoria');
+            if (selC && !selC.options.length) {
+                selC.innerHTML = `<option value="">— selecione —</option>` + FIN_CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('');
+            }
+            const fMes = document.getElementById('fin-filtro-mes');
+            if (fMes && !fMes.options.length) {
+                fMes.innerHTML = `<option value="">Todos os meses</option>` + FIN_MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+            }
+            const fTipo = document.getElementById('fin-filtro-tipo');
+            if (fTipo && !fTipo.options.length) {
+                fTipo.innerHTML = `<option value="">Todos os tipos</option>` + FIN_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+            const fParc = document.getElementById('fin-filtro-parceiro');
+            if (fParc) {
+                const atual = fParc.value;
+                fParc.innerHTML = `<option value="">Todos os parceiros</option><option value="__none__">Sem parceiro</option>`
+                    + FIN.parceiros.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+                fParc.value = atual;
+            }
+        }
+
+        function finRenderLancamentos() {
+            const body = document.getElementById('fin-lanc-body');
+            if (!body) return;
+            const fMes = document.getElementById('fin-filtro-mes').value;
+            const fParc = document.getElementById('fin-filtro-parceiro').value;
+            const fTipo = document.getElementById('fin-filtro-tipo').value;
+
+            const lista = FIN.lancamentos.filter(l => {
+                if (fMes && Number(l.mes) !== Number(fMes)) return false;
+                if (fTipo && l.tipo !== fTipo) return false;
+                if (fParc === '__none__' && l.parceiroId) return false;
+                if (fParc && fParc !== '__none__' && l.parceiroId !== fParc) return false;
+                return true;
+            });
+
+            if (!lista.length) {
+                body.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
+                return;
+            }
+            body.innerHTML = lista.map(l => {
+                const p = finParceiroById(l.parceiroId);
+                const conta = FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) > -1 && FIN_TIPOS_DISTRIB.indexOf(l.tipo) > -1 && l.parceiroId;
+                return `<tr class="hover:bg-slate-50/60">
+                    <td class="px-4 py-2.5 whitespace-nowrap text-xs">${l.data || ''}</td>
+                    <td class="px-4 py-2.5 text-xs">${l.tipo || '<span class="text-red-400">(vazio)</span>'}</td>
+                    <td class="px-4 py-2.5 text-xs font-medium text-slate-700">${p ? p.nome : '<span class="text-slate-300">—</span>'}</td>
+                    <td class="px-4 py-2.5 text-[11px] text-slate-500">${l.categoria || ''}</td>
+                    <td class="px-4 py-2.5 text-right text-xs font-semibold ${conta ? 'text-[#960018]' : 'text-slate-600'}" title="${conta ? 'Entra no Painel de Parcerias' : 'Não entra no painel'}">${finBRL(l.valor)}</td>
+                    <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                        <button onclick="finEditLancamento('${l.id}')" class="text-slate-400 hover:text-[#960018] px-1"><i class="fa-solid fa-pen text-xs"></i></button>
+                        <button onclick="finExcluirLancamento('${l.id}')" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash text-xs"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function finResetLancamentoForm() {
+            document.getElementById('fin-lanc-id').value = '';
+            document.getElementById('fin-lanc-data').value = '';
+            document.getElementById('fin-lanc-valor').value = '';
+            document.getElementById('fin-lanc-tipo').value = '';
+            document.getElementById('fin-lanc-categoria').value = '';
+            document.getElementById('fin-lanc-parceiro').value = '';
+            document.getElementById('fin-lanc-descricao').value = '';
+            document.getElementById('fin-lanc-form-title').innerText = 'Novo Lançamento';
+            finMsg('fin-lanc-alerta', '');
+            finMsg('fin-lanc-erro', '');
+        }
+
+        function finEditLancamento(id) {
+            const l = FIN.lancamentos.find(x => x.id === id);
+            if (!l) return;
+            document.getElementById('fin-lanc-id').value = l.id;
+            document.getElementById('fin-lanc-data').value = l.data || '';
+            document.getElementById('fin-lanc-valor').value = l.valor;
+            document.getElementById('fin-lanc-tipo').value = l.tipo || '';
+            document.getElementById('fin-lanc-categoria').value = l.categoria || '';
+            document.getElementById('fin-lanc-parceiro').value = l.parceiroId || '';
+            document.getElementById('fin-lanc-descricao').value = l.descricao || '';
+            document.getElementById('fin-lanc-form-title').innerText = 'Editar Lançamento';
+            finPreviewLimite();
+        }
+
+        // Soma já distribuída no mês, opcionalmente ignorando um lançamento (edição).
+        function finDistribuidoNoMes(parceiroId, mes, ignorarId) {
+            return FIN.lancamentos.reduce((acc, l) => {
+                if (l.id === ignorarId) return acc;
+                if (l.parceiroId !== parceiroId) return acc;
+                if (Number(l.mes) !== Number(mes)) return acc;
+                if (FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) === -1) return acc;
+                if (FIN_TIPOS_DISTRIB.indexOf(l.tipo) === -1) return acc;
+                return acc + (Number(l.valor) || 0);
+            }, 0);
+        }
+
+        // Alerta ANTES de salvar, não depois.
+        function finPreviewLimite() {
+            const parceiroId = document.getElementById('fin-lanc-parceiro').value;
+            const tipo = document.getElementById('fin-lanc-tipo').value;
+            const categoria = document.getElementById('fin-lanc-categoria').value;
+            const valor = parseFloat(document.getElementById('fin-lanc-valor').value) || 0;
+            const data = document.getElementById('fin-lanc-data').value;
+            const id = document.getElementById('fin-lanc-id').value;
+
+            if (!parceiroId || !data
+                || FIN_CATEGORIAS_PARCERIA.indexOf(categoria) === -1
+                || FIN_TIPOS_DISTRIB.indexOf(tipo) === -1) {
+                finMsg('fin-lanc-alerta', '');
+                return;
+            }
+            const p = finParceiroById(parceiroId);
+            const mes = Number(data.split('-')[1]);
+            const limite = finLimite(p);
+            const jaTem = finDistribuidoNoMes(parceiroId, mes, id);
+            const novo = jaTem + valor;
+            const nomeMes = FIN_MESES[mes - 1] || '';
+
+            if (novo > limite) {
+                finMsg('fin-lanc-alerta',
+                    `<b>Estoura o limite.</b> ${p.nome} chega a <b>${finBRL(novo)}</b> em ${nomeMes} — ${finBRL(novo - limite)} acima do limite de ${finBRL(limite)}.`,
+                    'alerta');
+            } else {
+                finMsg('fin-lanc-alerta',
+                    `${p.nome} em ${nomeMes}: ${finBRL(novo)} distribuído, restam ${finBRL(limite - novo)}.`,
+                    'ok');
+            }
+        }
+
+        async function finSalvarLancamento() {
+            if (!finRequire()) return;
+            const id = document.getElementById('fin-lanc-id').value;
+            const data = document.getElementById('fin-lanc-data').value;
+            const valor = parseFloat(document.getElementById('fin-lanc-valor').value);
+            const tipo = document.getElementById('fin-lanc-tipo').value;
+            const categoria = document.getElementById('fin-lanc-categoria').value;
+            const parceiroId = document.getElementById('fin-lanc-parceiro').value || null;
+            const descricao = document.getElementById('fin-lanc-descricao').value.trim();
+
+            if (!data) { finMsg('fin-lanc-erro', 'Informe a data.', 'erro'); return; }
+            if (!isFinite(valor) || valor <= 0) { finMsg('fin-lanc-erro', 'Valor deve ser um número maior que zero (o sinal é dado pelo tipo).', 'erro'); return; }
+            if (FIN_TIPOS.indexOf(tipo) === -1) { finMsg('fin-lanc-erro', 'Selecione um tipo.', 'erro'); return; }
+            if (FIN_CATEGORIAS.indexOf(categoria) === -1) { finMsg('fin-lanc-erro', 'Selecione uma categoria.', 'erro'); return; }
+            if (parceiroId && !finParceiroById(parceiroId)) { finMsg('fin-lanc-erro', 'Parceiro inválido.', 'erro'); return; }
+            // Categoria de parceria sem parceiro é exatamente o erro que o Excel produzia.
+            if (!parceiroId && FIN_CATEGORIAS_PARCERIA.indexOf(categoria) > -1) {
+                finMsg('fin-lanc-erro', 'Categoria de parceria exige um parceiro selecionado.', 'erro'); return;
+            }
+            finMsg('fin-lanc-erro', '');
+
+            const [ano, mes] = data.split('-').map(Number);
+            const p = finParceiroById(parceiroId);
+            const payload = {
+                data: data,
+                ano: ano,
+                mes: mes,
+                valor: Math.abs(valor),
+                tipo: tipo,
+                categoria: categoria,
+                parceiroId: parceiroId,
+                parceiroNome: p ? p.nome : null,
+                descricao: descricao,
+                origem: 'manual',
+                importId: null,
+                atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                atualizadoPor: FIN.user ? FIN.user.email : null
+            };
+            try {
+                if (id) {
+                    await FIN.db.collection('lancamentos').doc(id).update(payload);
+                } else {
+                    payload.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
+                    payload.criadoPor = FIN.user ? FIN.user.email : null;
+                    await FIN.db.collection('lancamentos').add(payload);
+                }
+                if (ano !== FIN.ano) {
+                    FIN.ano = ano;
+                    const sel = document.getElementById('fin-painel-ano');
+                    if (sel) sel.value = ano;
+                }
+                finResetLancamentoForm();
+                await finLoadAno();
+            } catch (e) {
+                finMsg('fin-lanc-erro', 'Erro ao salvar: ' + e.message, 'erro');
+            }
+        }
+
+        async function finExcluirLancamento(id) {
+            if (!finRequire()) return;
+            if (!confirm('Excluir este lançamento?')) return;
+            await FIN.db.collection('lancamentos').doc(id).delete();
+            await finLoadAno();
+        }
+
+        // ---------- IMPORTAÇÃO / CONCILIAÇÃO ----------
+        function finExcelData(v) {
+            if (v == null || v === '') return null;
+            if (v instanceof Date) return v;
+            if (typeof v === 'number') {                    // serial do Excel
+                const d = XLSX.SSF.parse_date_code(v);
+                return d ? new Date(d.y, d.m - 1, d.d) : null;
+            }
+            const s = String(v).trim();
+            let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);   // dd/mm/aaaa
+            if (m) {
+                let a = Number(m[3]); if (a < 100) a += 2000;
+                return new Date(a, Number(m[2]) - 1, Number(m[1]));
+            }
+            m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);                        // aaaa-mm-dd
+            if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            return null;
+        }
+
+        function finExcelValor(v) {
+            if (typeof v === 'number') return Math.abs(v);
+            if (v == null) return 0;
+            const s = String(v).replace(/[R$\s.]/g, '').replace(',', '.').replace(/[()]/g, '');
+            const n = parseFloat(s);
+            return isFinite(n) ? Math.abs(n) : 0;
+        }
+
+        function finImportParse(wb) {
+            const linhas = [];
+            const ignoradas = [];
+            wb.SheetNames.forEach(nome => {
+                const rows = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true });
+                // Localiza a linha de cabeçalho da aba (Data | Tipo | Movimento | Categoria | Valor | Saldo)
+                let hIdx = -1, cols = {};
+                for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                    const r = (rows[i] || []).map(c => finNorm(c));
+                    if (r.indexOf('data') > -1 && r.indexOf('valor') > -1) {
+                        hIdx = i;
+                        r.forEach((c, j) => {
+                            if (c === 'data') cols.data = j;
+                            if (c === 'tipo') cols.tipo = j;
+                            if (c === 'movimento') cols.mov = j;
+                            if (c === 'categoria') cols.cat = j;
+                            if (c === 'valor') cols.valor = j;
+                        });
+                        break;
+                    }
+                }
+                if (hIdx === -1) return;
+                for (let i = hIdx + 1; i < rows.length; i++) {
+                    const r = rows[i] || [];
+                    const dt = finExcelData(r[cols.data]);
+                    const valor = finExcelValor(r[cols.valor]);
+                    const mov = String(r[cols.mov] != null ? r[cols.mov] : '').trim().replace(/\s+/g, ' ');
+                    if (!dt || !valor) { if (mov) ignoradas.push(`${nome} linha ${i + 1}`); continue; }
+                    linhas.push({
+                        aba: nome,
+                        data: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`,
+                        ano: dt.getFullYear(),
+                        mes: dt.getMonth() + 1,
+                        tipo: String(r[cols.tipo] != null ? r[cols.tipo] : '').trim(),
+                        movimento: mov,
+                        categoria: String(r[cols.cat] != null ? r[cols.cat] : '').trim(),
+                        valor: valor
+                    });
+                }
+            });
+            return { linhas, ignoradas };
+        }
+
+        function finImportRender() {
+            const { linhas, ignoradas } = FIN.importBuffer;
+            const resumo = document.getElementById('fin-import-resumo');
+            const box = document.getElementById('fin-import-conciliacao');
+
+            // Cada "Movimento" distinto vira uma decisão — é aqui que grafia trocada e
+            // espaço duplo morrem, antes de entrarem no Firestore.
+            const distintos = {};
+            linhas.forEach(l => {
+                const k = finNorm(l.movimento);
+                if (!distintos[k]) distintos[k] = { rotulo: l.movimento, qtd: 0, total: 0, chave: k };
+                distintos[k].qtd++;
+                distintos[k].total += l.valor;
+            });
+            const lista = Object.values(distintos).sort((a, b) => b.total - a.total);
+            FIN.importBuffer.mapa = {};
+
+            resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${new Set(linhas.map(l => l.aba)).size} aba(s), com <b>${lista.length}</b> movimentos distintos.`
+                + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '');
+            resumo.classList.remove('hidden');
+
+            const optParc = FIN.parceiros.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+            box.innerHTML = `
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200">Conciliação — vincule cada movimento a um parceiro</div>
+                    <div class="max-h-[420px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-sm">
+                            <tbody class="divide-y divide-slate-100">
+                                ${lista.map(d => `<tr>
+                                    <td class="px-4 py-2 text-xs text-slate-700">${d.rotulo}<div class="text-[10px] text-slate-400">${d.qtd} lançamento(s) · ${finBRL(d.total)}</div></td>
+                                    <td class="px-4 py-2 w-72">
+                                        <select class="fin-input-sm w-full fin-map" data-chave="${d.chave}">
+                                            <option value="">— sem parceiro —</option>
+                                            <option value="__novo__">+ Criar parceiro "${d.rotulo}"</option>
+                                            ${optParc}
+                                        </select>
+                                    </td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-database"></i> Gravar ${linhas.length} lançamentos no Firestore
+                </button>`;
+            box.classList.remove('hidden');
+            // Pré-seleciona quando o movimento bate exatamente com um parceiro já cadastrado.
+            box.querySelectorAll('.fin-map').forEach(sel => {
+                const p = FIN.parceiros.find(x => x.nomeNorm === sel.dataset.chave || finNorm(x.nome) === sel.dataset.chave);
+                if (p) sel.value = p.id;
+            });
+        }
+
+        async function finImportGravar() {
+            if (!finRequire()) return;
+            if (!FIN.importBuffer) return;
+            const { linhas } = FIN.importBuffer;
+            const mapa = {};
+            document.querySelectorAll('.fin-map').forEach(sel => { mapa[sel.dataset.chave] = sel.value; });
+
+            const rotulos = {};
+            linhas.forEach(l => { rotulos[finNorm(l.movimento)] = l.movimento; });
+
+            if (!confirm(`Gravar ${linhas.length} lançamentos? Esta operação é única — rode a migração uma vez só.`)) return;
+            const status = document.getElementById('fin-import-status');
+            finMsg('fin-import-status', 'Gravando… não feche a aba.', 'alerta');
+
+            try {
+                const importId = 'imp_' + Date.now();
+                // Cria os parceiros novos primeiro, para o lançamento já nascer com a FK.
+                for (const chave of Object.keys(mapa)) {
+                    if (mapa[chave] !== '__novo__') continue;
+                    const nome = rotulos[chave];
+                    const ref = await FIN.db.collection('parceiros').add({
+                        nome: nome, nomeNorm: finNorm(nome), ativo: true, limiteMensal: FIN_LIMITE_PADRAO,
+                        criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                        criadoPor: FIN.user ? FIN.user.email : null
+                    });
+                    mapa[chave] = ref.id;
+                }
+                await finLoadParceiros();
+
+                // Firestore aceita 500 operações por batch.
+                for (let i = 0; i < linhas.length; i += 400) {
+                    const batch = FIN.db.batch();
+                    linhas.slice(i, i + 400).forEach(l => {
+                        const pid = mapa[finNorm(l.movimento)] || null;
+                        const p = pid ? finParceiroById(pid) : null;
+                        const tipo = FIN_TIPOS.indexOf(l.tipo) > -1 ? l.tipo : '';
+                        const cat = FIN_CATEGORIAS.indexOf(l.categoria) > -1 ? l.categoria : (l.categoria || '');
+                        batch.set(FIN.db.collection('lancamentos').doc(), {
+                            data: l.data, ano: l.ano, mes: l.mes,
+                            valor: Math.abs(l.valor),
+                            tipo: tipo,
+                            categoria: cat,
+                            parceiroId: pid,
+                            parceiroNome: p ? p.nome : null,
+                            descricao: l.movimento,
+                            origem: 'import',
+                            importId: importId,
+                            criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                            criadoPor: FIN.user ? FIN.user.email : null
+                        });
+                    });
+                    await batch.commit();
+                    finMsg('fin-import-status', `Gravando… ${Math.min(i + 400, linhas.length)} de ${linhas.length}.`, 'alerta');
+                }
+                finMsg('fin-import-status', `Pronto. ${linhas.length} lançamentos gravados (lote <code>${importId}</code>).`, 'ok');
+                document.getElementById('fin-import-conciliacao').classList.add('hidden');
+                FIN.importBuffer = null;
+                await finLoadAno();
+            } catch (e) {
+                console.error(e);
+                finMsg('fin-import-status', 'Erro na importação: ' + e.message, 'erro');
+            }
+        }
+
+        // ---------- entrada do módulo ----------
+        function finOnTab(id) {
+            if (!finInitFirebase()) {
+                alert('Firebase não configurado: preencha a constante firebaseConfig no topo do script.');
+                return;
+            }
+            finPopulaAnos();
+            if (!FIN.parceiros.length && !FIN.lancamentos.length) finLoadAno();
+            else { finRenderPainel(); finRenderParceiros(); finPopulaSelects(); finRenderLancamentos(); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            finInitFirebase();
+            const zone = document.getElementById('fin-import-zone');
+            if (zone) {
+                const input = document.getElementById('fin-import-file');
+                zone.addEventListener('click', () => input.click());
+                input.addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                        try {
+                            const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+                            FIN.importBuffer = finImportParse(wb);
+                            if (!FIN.importBuffer.linhas.length) {
+                                finMsg('fin-import-status', 'Nenhuma linha reconhecida. Confira se as abas têm cabeçalho Data | Tipo | Movimento | Categoria | Valor | Saldo.', 'erro');
+                                return;
+                            }
+                            finMsg('fin-import-status', '');
+                            finImportRender();
+                        } catch (err) {
+                            finMsg('fin-import-status', 'Erro ao ler o arquivo: ' + err.message, 'erro');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+        });
     </script>
 </body>
 </html>

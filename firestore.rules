@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Jurídico Analytics — módulo Financeiro / Controladoria.
+// Regra base: dado de dinheiro só existe para usuário autenticado.
+// Os usuários são provisionados manualmente no console do Firebase Auth,
+// então "autenticado" já equivale a "pessoa do escritório".
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null && request.auth.token.email_verified != false;
+    }
+
+    function TIPOS() {
+      return ['Entrada','Saída','Repasse','Recebimento Repasse','Despesa Conta PF','Espécie'];
+    }
+
+    match /parceiros/{parceiroId} {
+      allow read: if autenticado();
+
+      allow create, update: if autenticado()
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() > 0
+        && request.resource.data.nome.size() <= 120
+        && request.resource.data.ativo is bool
+        && request.resource.data.limiteMensal is number
+        && request.resource.data.limiteMensal >= 0;
+
+      allow delete: if autenticado();
+    }
+
+    match /lancamentos/{lancamentoId} {
+      allow read: if autenticado();
+
+      allow create, update: if autenticado()
+        // valor sempre positivo: a direção do dinheiro é dada pelo campo `tipo`.
+        && request.resource.data.valor is number
+        && request.resource.data.valor > 0
+        && request.resource.data.ano is int
+        && request.resource.data.ano >= 2000
+        && request.resource.data.ano <= 2100
+        && request.resource.data.mes is int
+        && request.resource.data.mes >= 1
+        && request.resource.data.mes <= 12
+        && request.resource.data.data is string
+        && request.resource.data.categoria is string
+        // tipo pode vir vazio na importação de linhas legadas; se vier preenchido,
+        // tem que pertencer ao enum.
+        && (request.resource.data.tipo == '' || request.resource.data.tipo in TIPOS())
+        // parceiroId é FK ou null — nunca texto livre.
+        && (request.resource.data.parceiroId == null
+            || exists(/databases/$(database)/documents/parceiros/$(request.resource.data.parceiroId)));
+
+      allow delete: if autenticado();
+    }
+
+    // Nada mais é público.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
