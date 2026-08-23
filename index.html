@@ -1010,14 +1010,16 @@
            Dados em Firestore (multiusuário + histórico), não em localStorage.
            ================================================================== */
 
-        // >>> COLE AQUI a config do seu projeto Firebase (Console > Config. do projeto) <<<
+        // Config do projeto Firebase "juridico-analytics".
+        // Estes valores são identificadores públicos do projeto (vão para o HTML de
+        // qualquer forma); quem protege os dados são as regras em firestore.rules.
         const firebaseConfig = {
-            apiKey: "",
-            authDomain: "",
-            projectId: "",
-            storageBucket: "",
-            messagingSenderId: "",
-            appId: ""
+            apiKey: "AIzaSyAZkCZYEN_X5Y_jomWrinhC_u6ui9vg0os",
+            authDomain: "juridico-analytics.firebaseapp.com",
+            projectId: "juridico-analytics",
+            storageBucket: "juridico-analytics.firebasestorage.app",
+            messagingSenderId: "513370989421",
+            appId: "1:513370989421:web:050c30cc43eb7b0c65b064"
         };
 
         const FIN_TIPOS = ["Entrada","Saída","Repasse","Recebimento Repasse","Despesa Conta PF","Espécie"];
