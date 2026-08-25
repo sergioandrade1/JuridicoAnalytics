@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <script>
@@ -247,6 +248,21 @@
             </div>
         </div>
 
+
+        <!-- Acesso sem permissao de modulo -->
+        <div id="sem-permissao-card" class="hidden w-full max-w-[380px] login-card-premium p-7 rounded-2xl text-center fade-in relative overflow-hidden z-10">
+            <div class="absolute top-0 left-0 w-full h-0.5" style="background:linear-gradient(90deg,transparent,#f87171,transparent)"></div>
+            <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.28)">
+                <i class="fa-solid fa-lock text-xl" style="color:#f87171"></i>
+            </div>
+            <h2 class="text-base font-bold text-white">Acesso não liberado</h2>
+            <p id="sem-permissao-msg" class="mt-2 text-sm leading-relaxed" style="color:rgba(203,213,225,.65)">
+                Sua conta não tem permissão para nenhum módulo.
+            </p>
+            <p class="text-[11px] mt-3" style="color:rgba(203,213,225,.4)">Peça ao administrador para liberar seu acesso.</p>
+            <button onclick="logout()" class="mt-5 w-full py-2.5 rounded-xl text-sm font-bold btn-silver">Sair</button>
+        </div>
+
         <!-- ===== HUB DE MODULOS (aparece depois do login) ===== -->
         <div id="hub-card" class="hidden w-full max-w-[560px] fade-in relative z-10">
             <div class="text-center mb-6">
@@ -254,7 +270,7 @@
                 <h2 class="text-2xl font-black text-white tracking-tight mt-1">Escolha o módulo</h2>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button onclick="hubAbrirProcessos()" class="login-card-premium rounded-2xl p-6 text-left transition-all relative overflow-hidden" style="border-color:rgba(203,213,225,.2)" onmouseover="this.style.borderColor='rgba(203,213,225,.5)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(203,213,225,.2)';this.style.transform='none'">
+                <button id="tile-operacional" onclick="hubAbrirProcessos()" class="login-card-premium rounded-2xl p-6 text-left transition-all relative overflow-hidden" style="border-color:rgba(203,213,225,.2)" onmouseover="this.style.borderColor='rgba(203,213,225,.5)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(203,213,225,.2)';this.style.transform='none'">
                     <div class="absolute top-0 left-0 w-full h-0.5" style="background:linear-gradient(90deg,transparent,var(--silver),transparent)"></div>
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style="background:rgba(203,213,225,.09);border:1px solid rgba(203,213,225,.18)">
                         <i class="fa-solid fa-scale-balanced text-lg" style="color:var(--silver)"></i>
@@ -263,7 +279,7 @@
                     <p class="text-xs mt-1.5 leading-relaxed" style="color:rgba(203,213,225,.45)">Visão geral, prazos, advogados, clientes, tarefas e fluxo</p>
                     <p class="text-[10px] mt-3 font-semibold uppercase tracking-wider" style="color:rgba(203,213,225,.3)"><i class="fa-solid fa-table-list mr-1"></i> Requer planilha</p>
                 </button>
-                <button onclick="hubAbrirFinanceiro()" class="login-card-premium rounded-2xl p-6 text-left transition-all relative overflow-hidden" style="border-color:rgba(212,175,55,.28)" onmouseover="this.style.borderColor='rgba(212,175,55,.65)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(212,175,55,.28)';this.style.transform='none'">
+                <button id="tile-financeiro" onclick="hubAbrirFinanceiro()" class="login-card-premium rounded-2xl p-6 text-left transition-all relative overflow-hidden" style="border-color:rgba(212,175,55,.28)" onmouseover="this.style.borderColor='rgba(212,175,55,.65)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='rgba(212,175,55,.28)';this.style.transform='none'">
                     <div class="absolute top-0 left-0 w-full h-0.5" style="background:linear-gradient(90deg,transparent,#D4AF37,transparent)"></div>
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style="background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.28)">
                         <i class="fa-solid fa-coins text-lg" style="color:#D4AF37"></i>
@@ -1732,8 +1748,124 @@ switchTab = function (id, el) {
     return _switchTabMenu(id, el);
 };
 
-</script>
+// ================= APP CHECK =================
+// Prova que a requisicao veio DESTE site. Sem isso, alguem que copie a apiKey
+// (que e publica por natureza) poderia falar com o Firebase de fora.
+// Cole abaixo a chave do site reCAPTCHA v3 gerada no console do Firebase.
+// Enquanto estiver vazia, o App Check fica desligado e nada quebra.
+const APPCHECK_SITE_KEY = "";
 
-<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="63f93596-1423-49de-ba06-29d79407f327" data-netlify-deploy-branch="" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiNjNmOTM1OTYtMTQyMy00OWRlLWJhMDYtMjlkNzk0MDdmMzI3IiwiYWNjb3VudF9pZCI6IjY5YzE3ZmVjMTAxYjI1MTQ1MmQ1OTI4OSIsImRlcGxveV9pZCI6IjZhOGMzYzdmMzk3NGExNzM1Y2VkNTNlYSIsImlzc3VlciI6Im5mc2VydmVyIn0.3ms8RTRLeDDNyz-qmJDkrZCiuyYuBI1do-hHT0RU_00"></script>
+(function initAppCheck() {
+    if (!APPCHECK_SITE_KEY) return;
+    try {
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        firebase.appCheck().activate(APPCHECK_SITE_KEY, true);
+        console.log('App Check ativo.');
+    } catch (e) {
+        console.warn('App Check nao pode ser ativado:', e.message);
+    }
+})();
+
+// ================= PERMISSAO POR MODULO =================
+// Perfil vive em /usuarios/{uid} no Firestore e so o console do Firebase escreve
+// nele. A trava da tela e conveniencia: quem barra de verdade sao as regras.
+const PERM = { carregado: false, ativo: false, modulos: [], erro: null };
+
+async function permCarregar(user) {
+    PERM.carregado = false; PERM.erro = null;
+    if (!finInitFirebase()) { PERM.erro = 'Firebase indisponível.'; return PERM; }
+    try {
+        const doc = await FIN.db.collection('usuarios').doc(user.uid).get();
+        if (!doc.exists) {
+            PERM.carregado = true; PERM.ativo = false; PERM.modulos = [];
+            PERM.erro = 'sem-perfil';
+            return PERM;
+        }
+        const d = doc.data() || {};
+        PERM.carregado = true;
+        PERM.ativo = d.ativo !== false;
+        PERM.modulos = Array.isArray(d.modulos) ? d.modulos : [];
+    } catch (e) {
+        PERM.carregado = true; PERM.ativo = false; PERM.modulos = [];
+        PERM.erro = e.message;
+    }
+    return PERM;
+}
+
+function permTem(mod) {
+    return PERM.carregado && PERM.ativo && PERM.modulos.indexOf(mod) >= 0;
+}
+
+function permBloquear(msg) {
+    ['hub-card', 'login-card', 'session-card'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+    document.getElementById('view-dashboard').classList.add('hidden');
+    document.getElementById('view-upload').classList.remove('hidden');
+    const card = document.getElementById('sem-permissao-card');
+    document.getElementById('sem-permissao-msg').innerText = msg;
+    card.classList.remove('hidden');
+}
+
+function permMensagem() {
+    if (PERM.erro === 'sem-perfil') {
+        return 'Sua conta ainda não foi cadastrada no controle de acesso.';
+    }
+    if (PERM.erro) return 'Não foi possível verificar suas permissões: ' + PERM.erro;
+    if (!PERM.ativo) return 'Sua conta está desativada.';
+    return 'Sua conta não tem permissão para nenhum módulo.';
+}
+
+// O hub passa a mostrar apenas os modulos permitidos.
+const _goToStep2Perm = goToStep2;
+goToStep2 = async function (user) {
+    const u = user || (typeof auth !== 'undefined' ? auth.currentUser : null);
+    if (!u) { _goToStep2Perm(user); return; }
+
+    await permCarregar(u);
+
+    if (!PERM.ativo || PERM.modulos.length === 0 || PERM.erro) {
+        permBloquear(permMensagem());
+        return;
+    }
+
+    _goToStep2Perm(u);
+
+    const tOp = document.getElementById('tile-operacional');
+    const tFin = document.getElementById('tile-financeiro');
+    const podeOp = permTem('operacional');
+    const podeFin = permTem('financeiro');
+    if (tOp) tOp.classList.toggle('hidden', !podeOp);
+    if (tFin) tFin.classList.toggle('hidden', !podeFin);
+
+    // Com um unico modulo liberado, nao faz sentido perguntar: entra direto.
+    if (podeFin && !podeOp) { hubAbrirFinanceiro(); return; }
+    if (podeOp && !podeFin) { hubAbrirProcessos(); return; }
+};
+
+// Trava tambem a entrada automatica (sessao restaurada com planilha salva).
+const _loginSuccessPerm = loginSuccess;
+loginSuccess = function (name) {
+    _loginSuccessPerm(name);
+    const u = (typeof auth !== 'undefined') ? auth.currentUser : null;
+    if (!u) return;
+    const conferir = function () {
+        const mod = (rawData && rawData.length > 0) ? 'operacional' : 'financeiro';
+        if (!permTem(mod)) permBloquear(permMensagem());
+    };
+    if (PERM.carregado) conferir();
+    else permCarregar(u).then(conferir);
+};
+
+// Trava a navegacao entre abas.
+const _switchTabPerm = switchTab;
+switchTab = function (id, el) {
+    const mod = String(id).indexOf('fin-') === 0 ? 'financeiro' : 'operacional';
+    if (PERM.carregado && !permTem(mod)) { permBloquear(permMensagem()); return; }
+    return _switchTabPerm(id, el);
+};
+
+</script>
 </body>
 </html>
