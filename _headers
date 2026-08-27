@@ -1,0 +1,11 @@
+# O index chama <script src="app.js"> sem versionamento. Sem revalidacao o
+# navegador serve a versao antiga depois de um deploy e o usuario precisa
+# de Ctrl+F5 para ver a mudanca.
+/
+  Cache-Control: no-cache, must-revalidate
+/index.html
+  Cache-Control: no-cache, must-revalidate
+/app.js
+  Cache-Control: no-cache, must-revalidate
+/style.css
+  Cache-Control: no-cache, must-revalidate
