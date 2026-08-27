@@ -1,0 +1,28 @@
+# Site estatico: os arquivos ficam na raiz do repositorio e nao ha etapa de
+# build. Sem esta configuracao a Netlify tentaria adivinhar um framework.
+[build]
+  publish = "."
+  command = ""
+
+# Deploy automatico somente a partir da main. Branches de trabalho
+# (wip/*, claude/*) nao publicam sozinhas.
+[build.processing]
+  skip_processing = false
+
+# O app.js e chamado sem versionamento no HTML, entao o navegador tende a
+# servir a versao antiga depois de um deploy. Estes cabecalhos obrigam a
+# revalidar a cada carregamento.
+[[headers]]
+  for = "/app.js"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/style.css"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, must-revalidate"
