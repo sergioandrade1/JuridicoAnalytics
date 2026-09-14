@@ -1669,40 +1669,169 @@ function finImportParse(wb) {
     return { linhas, ignoradas, abasIgnoradas, abasLidas };
 }
 
+// ---------- AGRUPAMENTO DA CONCILIACAO ----------
+// O movimento carrega o contexto entre parenteses ("Luiz André (Dislub mar/26)").
+// Para conciliar, o que importa e so o nome antes do parentese: 436 movimentos
+// distintos viram ~44 pessoas. O texto completo continua salvo em cada
+// lancamento — some apenas da tela de decisao.
+function finNomeBase(mov) {
+    let s = String(mov || '').split('(')[0];
+    s = s.split(/\s+[-–]\s+/)[0];
+    return s.replace(/\s+/g, ' ').trim();
+}
+
+function finChaveGrupo(mov) {
+    return finNormAscii(finNomeBase(mov));
+}
+
+// Um lancamento so precisa de parceiro se cair nas categorias de parceria —
+// os demais (Conta Garantida, tarifas, aluguel) sao gravados sem vinculo.
+function finCategoriaDeParceria(categoria) {
+    const c = finNormAscii(categoria);
+    return FIN_CATEGORIAS_PARCERIA.some(cp => c.indexOf(finNormAscii(cp).split(' - ')[0]) === 0);
+}
+
+// Agrupa as linhas por nome-base, contabilizando separadamente o que e de
+// parceria (o que move o painel) e o resto.
+function finImportGrupos(linhas) {
+    const grupos = {};
+    linhas.forEach(l => {
+        const k = finChaveGrupo(l.movimento);
+        if (!k) return;
+        if (!grupos[k]) grupos[k] = { chave: k, rotulo: finNomeBase(l.movimento), qtd: 0, qtdParc: 0, totalParc: 0 };
+        const g = grupos[k];
+        g.qtd++;
+        if (finCategoriaDeParceria(l.categoria)) { g.qtdParc++; g.totalParc += Number(l.valor) || 0; }
+        // Mantem a grafia mais completa como rotulo (com acento, nome inteiro).
+        const atual = finNomeBase(l.movimento);
+        if (atual.length > g.rotulo.length) g.rotulo = atual;
+    });
+    return grupos;
+}
+
+// Detecta grafias da mesma pessoa: "bruna" dentro de "bruna aquino". Compara
+// por palavra inteira, para "ana" nao casar com "anastacia".
+function finSugestoesFusao(grupos) {
+    const chaves = Object.keys(grupos);
+    const pares = [];
+    chaves.forEach(curto => {
+        chaves.forEach(longo => {
+            if (curto === longo) return;
+            if (longo.indexOf(curto + ' ') !== 0) return;        // prefixo em palavra inteira
+            // Sobrenome acrescenta 1 palavra. "Juros conta garantida" ou
+            // "Elaide reembolso materiais de limpeza" nao sao sobrenome.
+            const extras = longo.slice(curto.length).trim().split(' ').filter(Boolean).length;
+            if (extras > 1) return;
+            // So interessa se ao menos um lado move o Painel de Parcerias.
+            if (!(grupos[curto].qtdParc > 0 || grupos[longo].qtdParc > 0)) return;
+            pares.push({ curto, longo });
+        });
+    });
+    // "Bruna" casando com "Bruna Aquino" E "Bruna GJS" e ambiguo: mostra as
+    // duas opcoes, mas nao marca nenhuma — quem decide e o usuario.
+    const cont = {};
+    pares.forEach(par => { cont[par.curto] = (cont[par.curto] || 0) + 1; });
+    return pares.map(par => Object.assign({ ambiguo: cont[par.curto] > 1 }, par));
+}
+
+// Aplica as fusoes aceitas: devolve chave -> chave final. Segue a cadeia, pois
+// "Cecília" -> "Cecília Pinheiro" -> "Cecília Pinheiro Ramos" pode acontecer;
+// sem isso a primeira apontaria para um grupo que ja foi fundido. O limite de
+// voltas protege contra um ciclo criado por marcacoes contraditorias.
+function finMapaFusao() {
+    const fusoes = (FIN.importBuffer && FIN.importBuffer.fusoes) || {};
+    return chave => {
+        let atual = chave;
+        for (let i = 0; i < 10 && fusoes[atual] && fusoes[atual] !== atual; i++) atual = fusoes[atual];
+        return atual;
+    };
+}
+
 function finImportRender() {
     const { linhas, ignoradas, abasLidas = [], abasIgnoradas = [] } = FIN.importBuffer;
     const resumo = document.getElementById('fin-import-resumo');
-    const box = document.getElementById('fin-import-conciliacao');
 
-    // Cada "Movimento" distinto vira uma decisão — é aqui que grafia trocada e
-    // espaço duplo morrem, antes de entrarem no Firestore.
-    const distintos = {};
-    linhas.forEach(l => {
-        const k = finNorm(l.movimento);
-        if (!distintos[k]) distintos[k] = { rotulo: l.movimento, qtd: 0, total: 0, chave: k };
-        distintos[k].qtd++;
-        distintos[k].total += l.valor;
-    });
-    const lista = Object.values(distintos).sort((a, b) => b.total - a.total);
-    FIN.importBuffer.mapa = {};
+    const grupos = finImportGrupos(linhas);
+    FIN.importBuffer.grupos = grupos;
+    if (!FIN.importBuffer.fusoes) {
+        // Sugestoes de fusao vem marcadas por padrao: o caso comum e serem a
+        // mesma pessoa, e deixar separado quebra o controle de limite.
+        FIN.importBuffer.fusoes = {};
+        FIN.importBuffer.sugestoes = finSugestoesFusao(grupos);
+        FIN.importBuffer.sugestoes.forEach(sug => {
+            if (!sug.ambiguo) FIN.importBuffer.fusoes[sug.curto] = sug.longo;
+        });
+    }
 
+    const comParceria = Object.values(grupos).filter(g => g.qtdParc > 0).length;
     const divergentes = linhas.filter(l => l.alerta).length;
-    resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${abasLidas.length} aba(s) de mês, com <b>${lista.length}</b> movimentos distintos.`
+    resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${abasLidas.length} aba(s) de mês.`
         + (abasLidas.length ? `<div class="text-[11px] text-slate-500 mt-1">Abas lidas: ${abasLidas.map(a => `${a.nome} (${a.qtd})`).join(' · ')}</div>` : '')
         + (abasIgnoradas.length ? `<div class="text-[11px] text-slate-400 mt-0.5">Abas fora do padrão de mês, ignoradas: ${abasIgnoradas.join(' · ')}</div>` : '')
         + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '')
         + (divergentes ? ` <span class="text-amber-600">${divergentes} linha(s) com data fora do mês da aba — a data da linha prevalece.</span>` : '');
     resumo.classList.remove('hidden');
+    finImportRenderConciliacao();
+}
+
+// Separada do resumo porque e re-renderizada a cada fusao aceita/desfeita.
+function finImportRenderConciliacao() {
+    const box = document.getElementById('fin-import-conciliacao');
+    const { linhas, grupos, sugestoes = [], fusoes } = FIN.importBuffer;
+    const fundir = finMapaFusao();
+
+    // Consolida os grupos aplicando as fusoes aceitas.
+    const finais = {};
+    Object.values(grupos).forEach(g => {
+        const k = fundir(g.chave);
+        if (!finais[k]) finais[k] = { chave: k, rotulo: (grupos[k] && grupos[k].rotulo) || g.rotulo, qtd: 0, qtdParc: 0, totalParc: 0, variantes: [] };
+        const f = finais[k];
+        f.qtd += g.qtd; f.qtdParc += g.qtdParc; f.totalParc += g.totalParc;
+        if (g.chave !== k) f.variantes.push(g.rotulo);
+    });
+
+    // So entram na decisao os grupos que tem lancamento de parceria: o resto
+    // nunca afeta o Painel de Parcerias.
+    const lista = Object.values(finais).filter(g => g.qtdParc > 0).sort((a, b) => b.totalParc - a.totalParc);
+    const semParceria = Object.values(finais).length - lista.length;
+    const linhasSemParceria = linhas.filter(l => !finCategoriaDeParceria(l.categoria)).length;
 
     const optParc = FIN.parceiros.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
-    box.innerHTML = `
+
+    const blocoFusao = sugestoes.length ? `
+        <div class="border border-amber-200 bg-amber-50/60 rounded-xl overflow-hidden">
+            <div class="px-4 py-2 text-xs font-bold text-amber-800 border-b border-amber-200 flex items-center gap-2">
+                <i class="fa-solid fa-code-merge"></i> Possíveis grafias da mesma pessoa — desmarque se forem pessoas diferentes
+            </div>
+            <div class="p-3 space-y-1.5">
+                ${sugestoes.map(sug => {
+                    const gc = grupos[sug.curto], gl = grupos[sug.longo];
+                    const marcado = fusoes[sug.curto] === sug.longo ? 'checked' : '';
+                    return `<label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer hover:bg-white/60 rounded px-2 py-1">
+                        <input type="checkbox" ${marcado} onchange="finToggleFusao('${sug.curto}', '${sug.longo}', this.checked)" class="accent-[#960018]">
+                        <span><b>${gc.rotulo}</b> <span class="text-slate-400">(${gc.qtd} lanç.)</span>
+                        <i class="fa-solid fa-arrow-right mx-1 text-[9px] text-amber-600"></i>
+                        <b>${gl.rotulo}</b> <span class="text-slate-400">(${gl.qtd} lanç.)</span>
+                        ${sug.ambiguo ? '<span class="ml-1 text-[10px] font-bold text-red-600">ambíguo — confira</span>' : ''}</span>
+                    </label>`;
+                }).join('')}
+            </div>
+        </div>` : '';
+
+    box.innerHTML = blocoFusao + `
         <div class="border border-slate-200 rounded-xl overflow-hidden">
-            <div class="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200">Conciliação — vincule cada movimento a um parceiro</div>
+            <div class="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200 flex justify-between items-center gap-3">
+                <span>Conciliação — ${lista.length} nome(s) com lançamento de parceria</span>
+                <span class="font-normal text-slate-400">${semParceria} nome(s) fora das categorias de parceria não precisam de vínculo</span>
+            </div>
             <div class="max-h-[420px] overflow-y-auto custom-scrollbar">
                 <table class="w-full text-sm">
                     <tbody class="divide-y divide-slate-100">
                         ${lista.map(d => `<tr>
-                            <td class="px-4 py-2 text-xs text-slate-700">${d.rotulo}<div class="text-[10px] text-slate-400">${d.qtd} lançamento(s) · ${finBRL(d.total)}</div></td>
+                            <td class="px-4 py-2 text-xs text-slate-700">${d.rotulo}
+                                <div class="text-[10px] text-slate-400">${d.qtdParc} lançamento(s) de parceria · ${finBRL(d.totalParc)}${d.qtd > d.qtdParc ? ` · +${d.qtd - d.qtdParc} fora de parceria` : ''}</div>
+                                ${d.variantes.length ? `<div class="text-[10px] text-amber-600">fundido com: ${d.variantes.join(', ')}</div>` : ''}
+                            </td>
                             <td class="px-4 py-2 w-72">
                                 <select class="fin-input-sm w-full fin-map" data-chave="${d.chave}">
                                     <option value="">— sem parceiro —</option>
@@ -1715,15 +1844,24 @@ function finImportRender() {
                 </table>
             </div>
         </div>
+        <div class="text-[11px] text-slate-500">Os ${linhasSemParceria} lançamentos fora das categorias de parceria também são gravados, apenas sem vínculo com parceiro.</div>
         <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
             <i class="fa-solid fa-database"></i> Gravar ${linhas.length} lançamentos no Firestore
         </button>`;
     box.classList.remove('hidden');
-    // Pré-seleciona quando o movimento bate exatamente com um parceiro já cadastrado.
+
+    // Pre-seleciona quando o nome bate com um parceiro ja cadastrado; senao,
+    // ja deixa marcado para criar — e o caso da primeira migracao.
     box.querySelectorAll('.fin-map').forEach(sel => {
-        const p = FIN.parceiros.find(x => x.nomeNorm === sel.dataset.chave || finNorm(x.nome) === sel.dataset.chave);
-        if (p) sel.value = p.id;
+        const p = FIN.parceiros.find(x => finNormAscii(x.nome) === sel.dataset.chave);
+        sel.value = p ? p.id : '__novo__';
     });
+}
+
+function finToggleFusao(curto, longo, aceito) {
+    if (aceito) FIN.importBuffer.fusoes[curto] = longo;
+    else delete FIN.importBuffer.fusoes[curto];
+    finImportRenderConciliacao();
 }
 
 async function finImportGravar() {
@@ -1733,8 +1871,13 @@ async function finImportGravar() {
     const mapa = {};
     document.querySelectorAll('.fin-map').forEach(sel => { mapa[sel.dataset.chave] = sel.value; });
 
+    // Rotulo do parceiro a criar = nome-base mais completo do grupo.
     const rotulos = {};
-    linhas.forEach(l => { rotulos[finNorm(l.movimento)] = l.movimento; });
+    Object.keys(mapa).forEach(k => {
+        const g = FIN.importBuffer.grupos[k];
+        rotulos[k] = g ? g.rotulo : k;
+    });
+    const fundir = finMapaFusao();
 
     if (!confirm(`Gravar ${linhas.length} lançamentos? Esta operação é única — rode a migração uma vez só.`)) return;
     const status = document.getElementById('fin-import-status');
@@ -1759,7 +1902,11 @@ async function finImportGravar() {
         for (let i = 0; i < linhas.length; i += 400) {
             const batch = FIN.db.batch();
             linhas.slice(i, i + 400).forEach(l => {
-                const pid = mapa[finNorm(l.movimento)] || null;
+                // So lancamento de categoria de parceria recebe vinculo: um
+                // aluguel pago a "Bruna" nao pode entrar no limite dela.
+                const pid = finCategoriaDeParceria(l.categoria)
+                    ? (mapa[fundir(finChaveGrupo(l.movimento))] || null)
+                    : null;
                 const p = pid ? finParceiroById(pid) : null;
                 const tipo = FIN_TIPOS.indexOf(l.tipo) > -1 ? l.tipo : '';
                 const cat = FIN_CATEGORIAS.indexOf(l.categoria) > -1 ? l.categoria : (l.categoria || '');
