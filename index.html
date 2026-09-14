@@ -1709,6 +1709,18 @@ function finImportGrupos(linhas) {
     return grupos;
 }
 
+// Correcoes de grafia informadas pela gerencia, aplicadas como padrao na tela
+// (o usuario pode desfazer em qualquer linha pelo seletor "juntar em").
+// A chave e o nome-base normalizado; o valor, o nome-base final.
+const FIN_CORRECOES_NOME = {
+    'marina gusmao': 'mariana gusmao',        // Marina Gusmao nao existe
+    'mariana lealgjs': 'mariana leal',        // faltou o espaco antes de GJS
+    'carolina': 'carolina bitencourt',
+    'carolina monteiro': 'carolina bitencourt',
+    'ricardo mota': 'ricardo',                // fusao no sentido inverso
+    'ricardo oliveira': 'ricardo'
+};
+
 // Detecta grafias da mesma pessoa: "bruna" dentro de "bruna aquino". Compara
 // por palavra inteira, para "ana" nao casar com "anastacia".
 function finSugestoesFusao(grupos) {
@@ -1760,6 +1772,10 @@ function finImportRender() {
         FIN.importBuffer.sugestoes = finSugestoesFusao(grupos);
         FIN.importBuffer.sugestoes.forEach(sug => {
             if (!sug.ambiguo) FIN.importBuffer.fusoes[sug.curto] = sug.longo;
+        });
+        // As correcoes conhecidas vencem a sugestao automatica.
+        Object.keys(FIN_CORRECOES_NOME).forEach(k => {
+            if (grupos[k] && grupos[FIN_CORRECOES_NOME[k]]) FIN.importBuffer.fusoes[k] = FIN_CORRECOES_NOME[k];
         });
     }
 
@@ -1821,7 +1837,7 @@ function finImportRenderConciliacao() {
     box.innerHTML = blocoFusao + `
         <div class="border border-slate-200 rounded-xl overflow-hidden">
             <div class="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200 flex justify-between items-center gap-3">
-                <span>Conciliação — ${lista.length} nome(s) com lançamento de parceria</span>
+                <span>Conciliação — ${lista.length} nome(s) com lançamento de parceria <span class="font-normal text-slate-400">· use "juntar em" para unir grafias em qualquer direção</span></span>
                 <span class="font-normal text-slate-400">${semParceria} nome(s) fora das categorias de parceria não precisam de vínculo</span>
             </div>
             <div class="max-h-[420px] overflow-y-auto custom-scrollbar">
@@ -1831,6 +1847,12 @@ function finImportRenderConciliacao() {
                             <td class="px-4 py-2 text-xs text-slate-700">${d.rotulo}
                                 <div class="text-[10px] text-slate-400">${d.qtdParc} lançamento(s) de parceria · ${finBRL(d.totalParc)}${d.qtd > d.qtdParc ? ` · +${d.qtd - d.qtdParc} fora de parceria` : ''}</div>
                                 ${d.variantes.length ? `<div class="text-[10px] text-amber-600">fundido com: ${d.variantes.join(', ')}</div>` : ''}
+                            </td>
+                            <td class="px-4 py-2 w-56">
+                                <select class="fin-input-sm w-full text-[11px]" onchange="finFundirCom('${d.chave}', this.value)">
+                                    <option value="">— não fundir —</option>
+                                    ${lista.filter(o => o.chave !== d.chave).map(o => `<option value="${o.chave}">↳ juntar em ${o.rotulo}</option>`).join('')}
+                                </select>
                             </td>
                             <td class="px-4 py-2 w-72">
                                 <select class="fin-input-sm w-full fin-map" data-chave="${d.chave}">
@@ -1856,6 +1878,18 @@ function finImportRenderConciliacao() {
         const p = FIN.parceiros.find(x => finNormAscii(x.nome) === sel.dataset.chave);
         sel.value = p ? p.id : '__novo__';
     });
+}
+
+// Fusao manual em qualquer direcao (inclusive nome completo dentro do curto,
+// ex. "Ricardo Mota" -> "Ricardo"), que a sugestao automatica nao cobre.
+function finFundirCom(origem, destino) {
+    if (!destino) delete FIN.importBuffer.fusoes[origem];
+    else {
+        // Impede A->B junto de B->A, que criaria um ciclo.
+        if (FIN.importBuffer.fusoes[destino] === origem) delete FIN.importBuffer.fusoes[destino];
+        FIN.importBuffer.fusoes[origem] = destino;
+    }
+    finImportRenderConciliacao();
 }
 
 function finToggleFusao(curto, longo, aceito) {
