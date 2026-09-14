@@ -1816,7 +1816,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
                     FIN.importBuffer = finImportParse(wb);
                     if (!FIN.importBuffer.linhas.length) {
-                        finMsg('fin-import-status', 'Nenhuma linha reconhecida. Confira se as abas têm cabeçalho Data | Tipo | Movimento | Categoria | Valor | Saldo.', 'erro');
+                        // Mensagem diagnostica: diz o que o arquivo TEM, nao so o
+                        // que era esperado — senao nao da para saber se o problema
+                        // e o nome da aba ou o cabecalho das colunas.
+                        const { abasLidas = [], abasIgnoradas = [] } = FIN.importBuffer;
+                        let diag = 'Nenhuma linha reconhecida no arquivo <b>' + file.name + '</b>.';
+                        if (!abasLidas.length) {
+                            diag += ' Nenhuma aba de lançamento mensal foi encontrada — o nome da aba precisa ter a palavra'
+                                  + ' "Lançamentos" e um mês, ex: "Lançamentos Fevereiro".';
+                        } else {
+                            diag += ' Abas de mês encontradas: ' + abasLidas.map(a => a.nome).join(', ')
+                                  + ' — mas nenhuma linha tinha data e valor preenchidos.';
+                        }
+                        if (abasIgnoradas.length) diag += '<div class="mt-1 text-[11px] opacity-70">Abas ignoradas: ' + abasIgnoradas.join(' · ') + '</div>';
+                        finMsg('fin-import-status', diag, 'erro');
                         return;
                     }
                     finMsg('fin-import-status', '');
