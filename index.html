@@ -898,6 +898,81 @@ function finBRL(v) {
 function finNorm(s) {
     return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
+// Normaliza sem acento: usado para casar nome de aba e cabecalho com erro de
+// digitacao, caixa alta/baixa e acentuacao trocada ("Marco" == "Março").
+function finNormAscii(s) {
+    return String(s || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+const FIN_MESES_NOMES = ["janeiro","fevereiro","marco","abril","maio","junho",
+                         "julho","agosto","setembro","outubro","novembro","dezembro"];
+
+// Distancia de edicao curta — tolera 1 ou 2 caracteres trocados no nome do mes.
+function finEditDist(a, b) {
+    const m = a.length, n = b.length;
+    if (Math.abs(m - n) > 2) return 99;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                              prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        prev = cur;
+    }
+    return prev[n];
+}
+
+function finPareceCom(token, alvo) {
+    const tol = alvo.length >= 7 ? 2 : 1;
+    return finEditDist(token, alvo) <= tol;
+}
+
+// Retorna 1..12 para abas de lancamento mensal ("Lançamentos fevereiro",
+// "lancamentos Agosto", "Lançamentos Marco"), tolerando caixa, acento e erro
+// de digitacao. Abas sem a palavra "lançamentos" (Previsão Junho, Painel,
+// Plano de Contas) retornam null e nao sao importadas.
+function finMesDaAba(nome) {
+    const tokens = finNormAscii(nome).split(/[^a-z0-9]+/).filter(Boolean);
+    const temLancamentos = tokens.some(t => finPareceCom(t, 'lancamentos') || finPareceCom(t, 'lancamento'));
+    if (!temLancamentos) return null;
+    let melhor = null, melhorDist = 3;
+    tokens.forEach(t => {
+        if (t.length < 4) return;
+        FIN_MESES_NOMES.forEach((mes, i) => {
+            const d = finEditDist(t, mes);
+            if (finPareceCom(t, mes) && d < melhorDist) { melhorDist = d; melhor = i + 1; }
+        });
+    });
+    return melhor;
+}
+
+// Cabecalhos reais tem quebra de linha e texto de ajuda dentro da celula
+// ("Tipo \n(Entrada ou Saida)"), entao casamos pelo inicio do rotulo.
+const FIN_COLUNAS = [
+    { chave: 'data',  inicios: ['data'] },
+    { chave: 'tipo',  inicios: ['tipo'] },
+    { chave: 'mov',   inicios: ['movimento', 'historico', 'descricao'] },
+    { chave: 'cat',   inicios: ['categoria', 'conta', 'plano de contas'] },
+    { chave: 'valor', inicios: ['valor'] },
+    { chave: 'saldo', inicios: ['saldo'] }
+];
+
+function finMapearColunas(linha) {
+    const cols = {};
+    (linha || []).forEach((celula, j) => {
+        const txt = finNormAscii(celula);
+        if (!txt) return;
+        FIN_COLUNAS.forEach(def => {
+            if (cols[def.chave] != null) return;
+            if (def.inicios.some(ini => txt === ini || txt.indexOf(ini) === 0)) cols[def.chave] = j;
+        });
+    });
+    return cols;
+}
+
 function finParceiroById(id) {
     return FIN.parceiros.find(p => p.id === id) || null;
 }
@@ -1441,25 +1516,24 @@ function finExcelValor(v) {
 function finImportParse(wb) {
     const linhas = [];
     const ignoradas = [];
+    const abasIgnoradas = [];
+    const abasLidas = [];
     wb.SheetNames.forEach(nome => {
+        // So entram abas de lancamento mensal: "Lancamentos Fevereiro",
+        // "lançamentos agosto", "Lancamentos Marco"... Resumos, plano de
+        // contas e painel ficam de fora.
+        const mesAba = finMesDaAba(nome);
+        if (!mesAba) { abasIgnoradas.push(nome); return; }
+
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true });
-        // Localiza a linha de cabeçalho da aba (Data | Tipo | Movimento | Categoria | Valor | Saldo)
         let hIdx = -1, cols = {};
-        for (let i = 0; i < Math.min(rows.length, 15); i++) {
-            const r = (rows[i] || []).map(c => finNorm(c));
-            if (r.indexOf('data') > -1 && r.indexOf('valor') > -1) {
-                hIdx = i;
-                r.forEach((c, j) => {
-                    if (c === 'data') cols.data = j;
-                    if (c === 'tipo') cols.tipo = j;
-                    if (c === 'movimento') cols.mov = j;
-                    if (c === 'categoria') cols.cat = j;
-                    if (c === 'valor') cols.valor = j;
-                });
-                break;
-            }
+        for (let i = 0; i < Math.min(rows.length, 20); i++) {
+            const c = finMapearColunas(rows[i]);
+            if (c.data != null && c.valor != null && c.mov != null) { hIdx = i; cols = c; break; }
         }
-        if (hIdx === -1) return;
+        if (hIdx === -1) { abasIgnoradas.push(nome + ' (cabeçalho não encontrado)'); return; }
+
+        let lidasNaAba = 0;
         for (let i = hIdx + 1; i < rows.length; i++) {
             const r = rows[i] || [];
             const dt = finExcelData(r[cols.data]);
@@ -1468,21 +1542,27 @@ function finImportParse(wb) {
             if (!dt || !valor) { if (mov) ignoradas.push(`${nome} linha ${i + 1}`); continue; }
             linhas.push({
                 aba: nome,
+                mesAba: mesAba,
+                // Divergencia entre o mes da aba e a data digitada na linha.
+                alerta: (dt.getMonth() + 1) !== mesAba
+                        ? `data de ${FIN_MESES[dt.getMonth()]} na aba de ${FIN_MESES[mesAba - 1]}` : null,
                 data: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`,
                 ano: dt.getFullYear(),
                 mes: dt.getMonth() + 1,
-                tipo: String(r[cols.tipo] != null ? r[cols.tipo] : '').trim(),
+                tipo: cols.tipo != null ? String(r[cols.tipo] != null ? r[cols.tipo] : '').trim() : '',
                 movimento: mov,
-                categoria: String(r[cols.cat] != null ? r[cols.cat] : '').trim(),
+                categoria: cols.cat != null ? String(r[cols.cat] != null ? r[cols.cat] : '').trim() : '',
                 valor: valor
             });
+            lidasNaAba++;
         }
+        abasLidas.push({ nome, mes: mesAba, qtd: lidasNaAba });
     });
-    return { linhas, ignoradas };
+    return { linhas, ignoradas, abasIgnoradas, abasLidas };
 }
 
 function finImportRender() {
-    const { linhas, ignoradas } = FIN.importBuffer;
+    const { linhas, ignoradas, abasLidas = [], abasIgnoradas = [] } = FIN.importBuffer;
     const resumo = document.getElementById('fin-import-resumo');
     const box = document.getElementById('fin-import-conciliacao');
 
@@ -1498,8 +1578,12 @@ function finImportRender() {
     const lista = Object.values(distintos).sort((a, b) => b.total - a.total);
     FIN.importBuffer.mapa = {};
 
-    resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${new Set(linhas.map(l => l.aba)).size} aba(s), com <b>${lista.length}</b> movimentos distintos.`
-        + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '');
+    const divergentes = linhas.filter(l => l.alerta).length;
+    resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${abasLidas.length} aba(s) de mês, com <b>${lista.length}</b> movimentos distintos.`
+        + (abasLidas.length ? `<div class="text-[11px] text-slate-500 mt-1">Abas lidas: ${abasLidas.map(a => `${a.nome} (${a.qtd})`).join(' · ')}</div>` : '')
+        + (abasIgnoradas.length ? `<div class="text-[11px] text-slate-400 mt-0.5">Abas fora do padrão de mês, ignoradas: ${abasIgnoradas.join(' · ')}</div>` : '')
+        + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '')
+        + (divergentes ? ` <span class="text-amber-600">${divergentes} linha(s) com data fora do mês da aba — a data da linha prevalece.</span>` : '');
     resumo.classList.remove('hidden');
 
     const optParc = FIN.parceiros.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
