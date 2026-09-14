@@ -678,6 +678,37 @@
 
     </div>
 
+    <!-- Modal Extrato de Parceria: drill-down das celulas do Painel de Parcerias -->
+    <div id="fin-modal-extrato" class="hidden absolute inset-0 bg-slate-900/60 z-[115] flex items-center justify-center p-4 fade-in print:hidden" onclick="if(event.target===this)finFecharExtrato()">
+      <div class="fin-scope bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+        <div class="p-4 border-b border-slate-100 bg-[#960018]/5 flex justify-between items-start gap-3">
+          <div>
+            <h3 class="font-bold text-[#4A0404] text-base" id="fin-extrato-titulo">Extrato do parceiro</h3>
+            <p class="text-[11px] text-slate-500 mt-0.5" id="fin-extrato-sub"></p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button onclick="finExportExtrato()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-[#960018]/20 text-[#960018] hover:bg-[#960018]/5 transition-colors flex items-center gap-2"><i class="fa-solid fa-file-excel"></i> Exportar</button>
+            <button onclick="finFecharExtrato()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 text-slate-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div class="overflow-y-auto custom-scrollbar flex-1">
+          <table class="w-full text-sm text-left text-slate-600">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
+              <tr>
+                <th class="px-4 py-3 w-28">Data</th>
+                <th class="px-4 py-3 w-32">Tipo</th>
+                <th class="px-4 py-3">Movimento</th>
+                <th class="px-4 py-3">Categoria</th>
+                <th class="px-4 py-3 text-right w-32">Valor</th>
+              </tr>
+            </thead>
+            <tbody id="fin-extrato-body" class="divide-y divide-slate-100"></tbody>
+            <tfoot id="fin-extrato-foot" class="bg-[#4A0404] text-white text-xs font-bold"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div id="modal-prazos" class="hidden absolute inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 fade-in print:hidden">
       <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] border dark:border-slate-700">
         <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
@@ -1070,6 +1101,19 @@ function finPopulaAnos() {
 //   E categoria ∈ {2.02.001, 2.02.002}
 //   E tipo ∈ {Repasse, Saída, Despesa Conta PF}
 // Tipo vazio e "Recebimento Repasse" são ignorados de propósito.
+// Regra unica do Painel de Parcerias: um lancamento so conta como
+// "distribuido" ao parceiro se estiver vinculado a ele, cair nas categorias
+// 2.02.001/2.02.002 e ter tipo de perna unica (Repasse, Saida, Despesa Conta
+// PF). O drill-down usa exatamente este filtro, para o extrato nunca divergir
+// do numero mostrado na celula.
+function finEhDistribuicao(l) {
+    if (!l.parceiroId) return false;
+    if (FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) === -1) return false;
+    if (FIN_TIPOS_DISTRIB.indexOf(l.tipo) === -1) return false;
+    const m = Number(l.mes);
+    return m >= 1 && m <= 12;
+}
+
 function finCalcPainel() {
     const linhas = FIN.parceiros.map(p => ({
         parceiro: p,
@@ -1080,12 +1124,8 @@ function finCalcPainel() {
     linhas.forEach((l, i) => { idx[l.parceiro.id] = i; });
 
     FIN.lancamentos.forEach(l => {
-        if (!l.parceiroId || !(l.parceiroId in idx)) return;
-        if (FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) === -1) return;
-        if (FIN_TIPOS_DISTRIB.indexOf(l.tipo) === -1) return;
-        const m = Number(l.mes);
-        if (!(m >= 1 && m <= 12)) return;
-        linhas[idx[l.parceiroId]].distribuido[m - 1] += Number(l.valor) || 0;
+        if (!finEhDistribuicao(l) || !(l.parceiroId in idx)) return;
+        linhas[idx[l.parceiroId]].distribuido[Number(l.mes) - 1] += Number(l.valor) || 0;
     });
 
     linhas.forEach(l => {
@@ -1093,6 +1133,70 @@ function finCalcPainel() {
         l.estouro = l.distribuido.map(v => v > l.limite);
     });
     return linhas;
+}
+
+// ---------- DRILL-DOWN: extrato de um parceiro ----------
+// mes = null -> ano inteiro (clique no nome); mes = 1..12 -> so aquele mes
+// (clique na celula). Guardado em FIN.extrato para o botao Exportar reusar.
+function finAbrirExtrato(parceiroId, mes) {
+    const p = finParceiroById(parceiroId);
+    if (!p) return;
+    mes = (mes === null || mes === undefined || mes === '') ? null : Number(mes);
+
+    const itens = FIN.lancamentos
+        .filter(l => l.parceiroId === parceiroId && finEhDistribuicao(l))
+        .filter(l => mes === null || Number(l.mes) === mes)
+        .sort((a, b) => String(a.data).localeCompare(String(b.data)));
+
+    const total = itens.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
+    FIN.extrato = { parceiro: p, mes, itens, total };
+
+    document.getElementById('fin-extrato-titulo').innerText = p.nome;
+    const periodo = mes === null ? `ano de ${FIN.ano}` : `${FIN_MESES[mes - 1]}/${FIN.ano}`;
+    const limite = finLimite(p);
+    const estouro = mes !== null && total > limite;
+    document.getElementById('fin-extrato-sub').innerHTML =
+        `${itens.length} lançamento(s) em ${periodo} · total <b>${finBRL(total)}</b>`
+        + (mes !== null ? ` · limite ${finBRL(limite)}` : '')
+        + (estouro ? ` <span class="text-red-600 font-bold">— limite estourado em ${finBRL(total - limite)}</span>` : '');
+
+    const body = document.getElementById('fin-extrato-body');
+    body.innerHTML = itens.length ? itens.map(l => `<tr class="hover:bg-slate-50/60">
+            <td class="px-4 py-2 text-xs whitespace-nowrap">${finDataBR(l.data)}</td>
+            <td class="px-4 py-2 text-xs">${l.tipo || '—'}</td>
+            <td class="px-4 py-2 text-xs text-slate-700">${l.movimento || '—'}${l.aba ? `<div class="text-[10px] text-slate-400">${l.aba}</div>` : ''}</td>
+            <td class="px-4 py-2 text-[11px] text-slate-500">${l.categoria || '—'}</td>
+            <td class="px-4 py-2 text-xs text-right font-semibold text-slate-700 whitespace-nowrap">${finBRL(l.valor)}</td>
+        </tr>`).join('')
+        : `<tr><td colspan="5" class="px-4 py-10 text-center text-slate-400 text-sm">Nenhum lançamento de parceria neste período.</td></tr>`;
+
+    document.getElementById('fin-extrato-foot').innerHTML = `<tr>
+        <td class="px-4 py-3" colspan="4">TOTAL — ${periodo}</td>
+        <td class="px-4 py-3 text-right">${finBRL(total)}</td>
+    </tr>`;
+
+    document.getElementById('fin-modal-extrato').classList.remove('hidden');
+}
+
+function finFecharExtrato() {
+    document.getElementById('fin-modal-extrato').classList.add('hidden');
+}
+
+function finDataBR(iso) {
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '—');
+}
+
+function finExportExtrato() {
+    if (!FIN.extrato || !FIN.extrato.itens.length) return;
+    const { parceiro, mes, itens, total } = FIN.extrato;
+    const periodo = mes === null ? String(FIN.ano) : `${FIN_MESES[mes - 1]}_${FIN.ano}`;
+    const aoa = [['Data', 'Tipo', 'Movimento', 'Categoria', 'Valor']];
+    itens.forEach(l => aoa.push([finDataBR(l.data), l.tipo || '', l.movimento || '', l.categoria || '', Number(l.valor) || 0]));
+    aoa.push(['', '', '', 'TOTAL', total]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Extrato');
+    XLSX.writeFile(wb, `Extrato_${String(parceiro.nome).replace(/[^\w]+/g, '_')}_${periodo}.xlsx`);
 }
 
 function finRenderPainel() {
@@ -1128,20 +1232,24 @@ function finRenderPainel() {
             const cor = l.estouro[i] ? 'text-red-600 font-bold' : 'text-slate-700';
             const corDisp = l.disponivel[i] < 0 ? 'text-red-500' : 'text-emerald-600';
             const bg = l.estouro[i] ? 'bg-red-50' : '';
-            return `<td class="px-3 py-2 text-right border-l border-slate-100 ${bg}">
+            // Celula com valor vira drill-down do mes; celula zerada fica inerte.
+            const clicavel = v > 0
+                ? `cursor-pointer hover:bg-[#D4AF37]/10" title="Ver lançamentos de ${FIN_MESES[i]}" onclick="finAbrirExtrato('${l.parceiro.id}', ${i + 1})`
+                : '';
+            return `<td class="px-3 py-2 text-right border-l border-slate-100 ${bg} ${clicavel}">
                 <div class="${cor} text-xs">${finBRL(v)}</div>
                 <div class="${corDisp} text-[10px]">${finBRL(l.disponivel[i])}</div>
             </td>`;
         }).join('');
         const anoDist = l.distribuido.reduce((a, b) => a + b, 0);
         return `<tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-2 sticky left-0 bg-white z-10 font-medium text-slate-700">
-                ${l.parceiro.nome}
+            <td class="px-4 py-2 sticky left-0 bg-white z-10 font-medium text-slate-700 cursor-pointer hover:text-[#960018]" title="Ver todos os lançamentos do ano" onclick="finAbrirExtrato('${l.parceiro.id}', null)">
+                <span class="underline decoration-dotted decoration-slate-300 underline-offset-4">${l.parceiro.nome}</span>
                 ${l.parceiro.ativo === false ? '<span class="ml-2 text-[10px] text-slate-400">(inativo)</span>' : ''}
                 <div class="text-[10px] text-slate-400 font-normal">limite ${finBRL(l.limite)}/mês</div>
             </td>
             ${cells}
-            <td class="px-4 py-2 text-right border-l-2 border-[#D4AF37] bg-[#D4AF37]/5 font-bold text-xs text-[#4A0404]">${finBRL(anoDist)}</td>
+            <td class="px-4 py-2 text-right border-l-2 border-[#D4AF37] bg-[#D4AF37]/5 font-bold text-xs text-[#4A0404] ${anoDist > 0 ? 'cursor-pointer hover:bg-[#D4AF37]/20' : ''}" ${anoDist > 0 ? `onclick="finAbrirExtrato('${l.parceiro.id}', null)"` : ''}>${finBRL(anoDist)}</td>
         </tr>`;
     }).join('');
 
