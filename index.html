@@ -1108,7 +1108,10 @@ function finPopulaAnos() {
 // do numero mostrado na celula.
 function finEhDistribuicao(l) {
     if (!l.parceiroId) return false;
-    if (FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) === -1) return false;
+    // Casa pelo codigo da conta (2.02.001/2.02.002), nao pelo texto exato: um
+    // espaco a mais ou um acento trocado na planilha faria o painel ignorar o
+    // lancamento sem avisar ninguem.
+    if (!finCategoriaDeParceria(l.categoria)) return false;
     if (FIN_TIPOS_DISTRIB.indexOf(l.tipo) === -1) return false;
     const m = Number(l.mes);
     return m >= 1 && m <= 12;
