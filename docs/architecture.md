@@ -2,6 +2,7 @@
 
 - `index.html` (~2100 linhas): marcacao, Tailwind config e scripts inline (modulo financeiro `FIN`, protecoes de dominio/iframe, log de acesso local).
 - `app.js` (~515 linhas compactadas): estado, Firebase Auth, importacao XLSX, filtros, graficos, prazos, e-mail. Define `firebaseConfig` e `switchTab`, usados pelo script inline financeiro.
+- `fin-core.js`: regras puras do financeiro (plano de contas real, tipo pela conta, sinal e saldo corrente), testadas em Node. Para mudar uma conta, edite `FIN_PLANO`.
 - `style.css`: estilos complementares ao Tailwind.
 - Dados: planilha importada em `localStorage` (`juridico_data_v10`); financeiro em Firestore.
 - Deploy: Netlify (`publish="."`), cache `no-cache` em `_headers`.
@@ -11,3 +12,7 @@
 - Protecao de dominio/iframe so no cliente: nao e controle de seguranca.
 - `showSendStatus` e chamada em `app.js` e nao esta definida (envio de e-mail falha nesses ramos).
 - Arquivos acima da referencia de 350 linhas.
+
+## Financeiro: saldo inicial
+Guardado em `configFinanceiro/{ano}` no Firestore. Se as regras ainda não liberam essa coleção, a tela avisa e usa o valor do navegador.
+Saldo corrente: Entrada/Recebimento Repasse somam; Saída/Repasse/Despesa Conta PF subtraem; Espécie não move o saldo.

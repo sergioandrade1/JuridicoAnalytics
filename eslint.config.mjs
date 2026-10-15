@@ -6,7 +6,7 @@ import globals from "globals";
 export default [
   js.configs.recommended,
   {
-    files: ["app.js"],
+    files: ["app.js", "fin-core.js"],
     languageOptions: {
       sourceType: "script",
       globals: {
@@ -15,6 +15,7 @@ export default [
         XLSX: "readonly",
         Chart: "readonly",
         emailjs: "readonly",
+        module: "writable",
       },
     },
     rules: {
@@ -27,5 +28,12 @@ export default [
   {
     files: ["scripts/**/*.mjs"],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // page.evaluate() roda no navegador, entao enxerga estes globais.
+    files: ["scripts/fin-ui.mjs"],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser, finOnTab: "readonly" },
+    },
   },
 ];

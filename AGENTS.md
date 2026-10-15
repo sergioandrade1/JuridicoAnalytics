@@ -13,6 +13,7 @@
 - Lint: `npm run lint` (ESLint em `app.js` e `scripts/`)
 - Formato: `npm run format:check`
 - Testes: `npm test` (config do deploy e referencias)
+- Teste de interface do financeiro: `npm run test:ui` (Firebase e CDNs falsos, sem rede)
 - Smoke no navegador: `npm run smoke` (precisa de rede para os CDNs e de Chromium)
 - Tipos / build: indisponiveis (sem TypeScript, sem build)
 - Verificar base: `npm run check`

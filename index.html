@@ -545,9 +545,9 @@
               <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
                   <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
                       <h3 class="font-bold text-[#4A0404] text-base" id="fin-lanc-form-title">Novo Lançamento</h3>
-                      <p class="text-[11px] text-slate-500 mt-0.5">Parceiro é escolhido na lista — nunca digitado.</p>
+                      <p class="text-[11px] text-slate-500 mt-0.5">Enter salva. O tipo vem da conta e a data é mantida para o próximo.</p>
                   </div>
-                  <div class="p-4 space-y-3">
+                  <div class="p-4 space-y-3" id="fin-lanc-form">
                       <input type="hidden" id="fin-lanc-id">
                       <div class="grid grid-cols-2 gap-3">
                           <div>
@@ -560,20 +560,20 @@
                           </div>
                       </div>
                       <div>
+                          <label class="fin-label">Movimento</label>
+                          <input type="text" id="fin-lanc-descricao" class="fin-input" placeholder="Ex.: Conta de luz Neoenergia">
+                      </div>
+                      <div>
+                          <label class="fin-label">Conta (plano de contas)</label>
+                          <select id="fin-lanc-categoria" onchange="finAoMudarCategoria()" class="fin-input"></select>
+                      </div>
+                      <div>
                           <label class="fin-label">Tipo</label>
                           <select id="fin-lanc-tipo" onchange="finPreviewLimite()" class="fin-input"></select>
                       </div>
-                      <div>
-                          <label class="fin-label">Categoria</label>
-                          <select id="fin-lanc-categoria" onchange="finPreviewLimite()" class="fin-input"></select>
-                      </div>
-                      <div>
+                      <div id="fin-lanc-parceiro-box" class="hidden">
                           <label class="fin-label">Parceiro</label>
                           <select id="fin-lanc-parceiro" onchange="finPreviewLimite()" class="fin-input"></select>
-                      </div>
-                      <div>
-                          <label class="fin-label">Descrição</label>
-                          <input type="text" id="fin-lanc-descricao" class="fin-input" placeholder="Histórico do movimento">
                       </div>
                       <div id="fin-lanc-alerta" class="hidden text-xs rounded-lg p-3 border"></div>
                       <div id="fin-lanc-erro" class="hidden text-xs rounded-lg p-3 border border-red-100 bg-red-50 text-red-600"></div>
@@ -587,19 +587,24 @@
               <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                   <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-2">
                       <h3 class="font-bold text-[#4A0404] text-base mr-auto">Lançamentos</h3>
+                      <label class="fin-label !mb-0">Saldo inicial do ano</label>
+                      <input type="number" step="0.01" id="fin-saldo-inicial" onchange="finSalvarSaldoInicial()" class="fin-input-sm w-32 text-right" placeholder="0,00">
                       <select id="fin-filtro-mes" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                   </div>
+                  <div id="fin-saldo-erro" class="hidden m-3"></div>
+                  <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
                   <div class="overflow-x-auto custom-scrollbar max-h-[70vh]">
                       <table class="w-full text-sm text-left text-slate-600">
                           <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
                               <tr>
                                   <th class="px-4 py-3">Data</th>
                                   <th class="px-4 py-3">Tipo</th>
-                                  <th class="px-4 py-3">Parceiro</th>
-                                  <th class="px-4 py-3">Categoria</th>
+                                  <th class="px-4 py-3">Movimento</th>
+                                  <th class="px-4 py-3">Conta</th>
                                   <th class="px-4 py-3 text-right">Valor</th>
+                                  <th class="px-4 py-3 text-right">Saldo</th>
                                   <th class="px-4 py-3 w-20"></th>
                               </tr>
                           </thead>
@@ -880,6 +885,7 @@
 <div id="toast-container"></div>
 
 <script src="app.js"></script>
+<script src="fin-core.js"></script>
 
 <script>
 /* ==================================================================
@@ -897,18 +903,8 @@ const FIN_TIPOS = ["Entrada","Saída","Repasse","Recebimento Repasse","Despesa C
 // Tipos que caracterizam distribuição ao parceiro (regra de perna única:
 // "Recebimento Repasse" e tipo vazio ficam de fora para não contar duas vezes).
 const FIN_TIPOS_DISTRIB = ["Repasse","Saída","Despesa Conta PF"];
-const FIN_CATEGORIAS = [
-    "1.01.001 - Honorários Contratuais",
-    "1.01.002 - Honorários de Êxito",
-    "1.02.001 - Outras Receitas",
-    "2.01.001 - Folha e Pró-labore",
-    "2.01.002 - Aluguel e Condomínio",
-    "2.01.003 - Despesas Administrativas",
-    "2.02.001 - Parceria Jurídica",
-    "2.02.002 - Honorários Fixos",
-    "2.03.001 - Impostos e Taxas",
-    "3.01.001 - Movimentação Interna"
-];
+// Plano de contas real vem de fin-core.js (FIN_PLANO / FIN_CONTAS).
+const FIN_CATEGORIAS = FIN_CONTAS;
 // Só estas duas entram no Painel de Parcerias.
 const FIN_CATEGORIAS_PARCERIA = ["2.02.001 - Parceria Jurídica","2.02.002 - Honorários Fixos"];
 const FIN_LIMITE_PADRAO = 50000;
@@ -917,6 +913,7 @@ const FIN_MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","
 const FIN = {
     db: null, auth: null, user: null, ready: false,
     ano: new Date().getFullYear(),
+    saldoInicial: 0,    // saldo inicial do ano (configFinanceiro/{ano})
     parceiros: [],      // todos os parceiros
     lancamentos: [],    // apenas do ano selecionado
     importBuffer: null
@@ -1066,11 +1063,44 @@ async function finLoadLancamentos(ano) {
     FIN.lancamentos.sort((a, b) => (a.mes - b.mes) || String(a.data).localeCompare(String(b.data)));
 }
 
+// Saldo inicial do ano. Se as regras do Firestore ainda nao liberam a colecao
+// configFinanceiro, o valor fica so neste navegador e o usuario e avisado.
+async function finLoadConfig() {
+    FIN.saldoInicial = 0;
+    try {
+        const d = await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).get();
+        if (d.exists) FIN.saldoInicial = Number(d.data().saldoInicial) || 0;
+        finMsg('fin-saldo-erro', '');
+    } catch (e) {
+        FIN.saldoInicial = Number(localStorage.getItem('fin_saldo_' + FIN.ano)) || 0;
+        finMsg('fin-saldo-erro', 'Sem permissão para ler o saldo inicial no Firestore (libere a coleção configFinanceiro nas regras). Usando o valor deste navegador.', 'alerta');
+    }
+}
+
+async function finSalvarSaldoInicial() {
+    if (!finRequire()) return;
+    const v = parseFloat(document.getElementById('fin-saldo-inicial').value);
+    FIN.saldoInicial = isFinite(v) ? v : 0;
+    try { localStorage.setItem('fin_saldo_' + FIN.ano, String(FIN.saldoInicial)); } catch (e) { /* storage indisponivel */ }
+    try {
+        await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).set({
+            saldoInicial: FIN.saldoInicial,
+            atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            atualizadoPor: FIN.user ? FIN.user.email : null
+        }, { merge: true });
+        finMsg('fin-saldo-erro', '');
+    } catch (e) {
+        finMsg('fin-saldo-erro', 'Não salvou no Firestore (' + e.message + '). Valor mantido só neste navegador.', 'alerta');
+    }
+    finRenderLancamentos();
+}
+
 async function finLoadAno() {
     if (!finRequire()) return;
     try {
         await finLoadParceiros();
         await finLoadLancamentos(FIN.ano);
+        await finLoadConfig();
         finRenderPainel();
         finRenderParceiros();
         finPopulaSelects();
@@ -1405,7 +1435,8 @@ function finPopulaSelects() {
     }
     const selC = document.getElementById('fin-lanc-categoria');
     if (selC && !selC.options.length) {
-        selC.innerHTML = `<option value="">— selecione —</option>` + FIN_CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('');
+        selC.innerHTML = `<option value="">— selecione —</option>` + FIN_PLANO.map(g =>
+            `<optgroup label="${g.grupo}">` + g.contas.map(c => `<option value="${c}">${c}</option>`).join('') + `</optgroup>`).join('');
     }
     const fMes = document.getElementById('fin-filtro-mes');
     if (fMes && !fMes.options.length) {
@@ -1430,8 +1461,12 @@ function finRenderLancamentos() {
     const fMes = document.getElementById('fin-filtro-mes').value;
     const fParc = document.getElementById('fin-filtro-parceiro').value;
     const fTipo = document.getElementById('fin-filtro-tipo').value;
+    const inp = document.getElementById('fin-saldo-inicial');
+    if (inp && document.activeElement !== inp) inp.value = FIN.saldoInicial || '';
 
-    const lista = FIN.lancamentos.filter(l => {
+    // Saldo corrente calculado no ano inteiro; os filtros so escondem linhas.
+    const calc = finCalcSaldos(FIN.lancamentos, FIN.saldoInicial);
+    const lista = calc.ordem.filter(l => {
         if (fMes && Number(l.mes) !== Number(fMes)) return false;
         if (fTipo && l.tipo !== fTipo) return false;
         if (fParc === '__none__' && l.parceiroId) return false;
@@ -1439,19 +1474,26 @@ function finRenderLancamentos() {
         return true;
     });
 
+    const cel = (rot, v, cor) => `<div class="bg-white py-2"><div class="text-[10px] uppercase text-slate-400 font-bold">${rot}</div><div class="font-bold ${cor}">${finBRL(v)}</div></div>`;
+    document.getElementById('fin-lanc-resumo').innerHTML =
+        cel('Entradas no ano', calc.entradas, 'text-emerald-600') + cel('Saídas no ano', calc.saidas, 'text-red-600')
+        + cel('Saldo atual', calc.saldoFinal, calc.saldoFinal < 0 ? 'text-red-600' : 'text-slate-700');
+
     if (!lista.length) {
-        body.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
         return;
     }
     body.innerHTML = lista.map(l => {
         const p = finParceiroById(l.parceiroId);
-        const conta = FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) > -1 && FIN_TIPOS_DISTRIB.indexOf(l.tipo) > -1 && l.parceiroId;
+        const sinal = finSinal(l.tipo);
+        const saldo = calc.saldos[l.id];
         return `<tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-2.5 whitespace-nowrap text-xs">${l.data || ''}</td>
+            <td class="px-4 py-2.5 whitespace-nowrap text-xs">${finDataBR(l.data)}</td>
             <td class="px-4 py-2.5 text-xs">${l.tipo || '<span class="text-red-400">(vazio)</span>'}</td>
-            <td class="px-4 py-2.5 text-xs font-medium text-slate-700">${p ? p.nome : '<span class="text-slate-300">—</span>'}</td>
-            <td class="px-4 py-2.5 text-[11px] text-slate-500">${l.categoria || ''}</td>
-            <td class="px-4 py-2.5 text-right text-xs font-semibold ${conta ? 'text-[#960018]' : 'text-slate-600'}" title="${conta ? 'Entra no Painel de Parcerias' : 'Não entra no painel'}">${finBRL(l.valor)}</td>
+            <td class="px-4 py-2.5 text-xs font-medium text-slate-700">${sanitize(l.descricao)}${p ? ` <span class="text-[10px] text-[#960018]">· ${sanitize(p.nome)}</span>` : ''}</td>
+            <td class="px-4 py-2.5 text-[11px] text-slate-500">${sanitize(l.categoria)}</td>
+            <td class="px-4 py-2.5 text-right text-xs font-semibold ${sinal > 0 ? 'text-emerald-600' : sinal < 0 ? 'text-red-600' : 'text-slate-600'}">${finBRL(l.valor)}</td>
+            <td class="px-4 py-2.5 text-right text-xs ${saldo < 0 ? 'text-red-600' : 'text-slate-500'}">${finBRL(saldo)}</td>
             <td class="px-4 py-2.5 text-right whitespace-nowrap">
                 <button onclick="finEditLancamento('${l.id}')" class="text-slate-400 hover:text-[#960018] px-1"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button onclick="finExcluirLancamento('${l.id}')" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash text-xs"></i></button>
@@ -1460,15 +1502,17 @@ function finRenderLancamentos() {
     }).join('');
 }
 
-function finResetLancamentoForm() {
+// manterData: apos salvar, a data fica para o proximo lancamento do mesmo dia.
+function finResetLancamentoForm(manterData) {
     document.getElementById('fin-lanc-id').value = '';
-    document.getElementById('fin-lanc-data').value = '';
+    if (!manterData) document.getElementById('fin-lanc-data').value = '';
     document.getElementById('fin-lanc-valor').value = '';
     document.getElementById('fin-lanc-tipo').value = '';
     document.getElementById('fin-lanc-categoria').value = '';
     document.getElementById('fin-lanc-parceiro').value = '';
     document.getElementById('fin-lanc-descricao').value = '';
     document.getElementById('fin-lanc-form-title').innerText = 'Novo Lançamento';
+    finAtualizaCamposForm();
     finMsg('fin-lanc-alerta', '');
     finMsg('fin-lanc-erro', '');
 }
@@ -1476,6 +1520,7 @@ function finResetLancamentoForm() {
 function finEditLancamento(id) {
     const l = FIN.lancamentos.find(x => x.id === id);
     if (!l) return;
+    finGarantirOpcaoCategoria(l.categoria);
     document.getElementById('fin-lanc-id').value = l.id;
     document.getElementById('fin-lanc-data').value = l.data || '';
     document.getElementById('fin-lanc-valor').value = l.valor;
@@ -1484,6 +1529,34 @@ function finEditLancamento(id) {
     document.getElementById('fin-lanc-parceiro').value = l.parceiroId || '';
     document.getElementById('fin-lanc-descricao').value = l.descricao || '';
     document.getElementById('fin-lanc-form-title').innerText = 'Editar Lançamento';
+    finAtualizaCamposForm();
+    finPreviewLimite();
+}
+
+// Lancamentos importados podem ter conta fora do plano atual; sem esta opcao o
+// select apagaria a conta ao editar.
+function finGarantirOpcaoCategoria(cat) {
+    const sel = document.getElementById('fin-lanc-categoria');
+    if (!cat || !sel || FIN_CONTAS.indexOf(cat) > -1 || [].some.call(sel.options, o => o.value === cat)) return;
+    sel.insertAdjacentHTML('beforeend', `<option value="${sanitize(cat)}">${sanitize(cat)} (fora do plano)</option>`);
+}
+
+// Parceiro so aparece quando a conta e de parceria (ou o lancamento ja tem um).
+function finAtualizaCamposForm() {
+    const cat = document.getElementById('fin-lanc-categoria').value;
+    const par = document.getElementById('fin-lanc-parceiro');
+    const mostrar = finCategoriaDeParceria(cat) || !!par.value;
+    document.getElementById('fin-lanc-parceiro-box').classList.toggle('hidden', !mostrar);
+}
+
+// Escolher a conta define o tipo: 1.* Entrada, 2.* Saída (parceria tambem Saída,
+// que entra no Painel de Parcerias).
+function finAoMudarCategoria() {
+    const cat = document.getElementById('fin-lanc-categoria').value;
+    const tipo = finTipoDaConta(cat);
+    if (tipo) document.getElementById('fin-lanc-tipo').value = tipo;
+    if (!finCategoriaDeParceria(cat)) document.getElementById('fin-lanc-parceiro').value = '';
+    finAtualizaCamposForm();
     finPreviewLimite();
 }
 
@@ -1545,7 +1618,7 @@ async function finSalvarLancamento() {
     if (!data) { finMsg('fin-lanc-erro', 'Informe a data.', 'erro'); return; }
     if (!isFinite(valor) || valor <= 0) { finMsg('fin-lanc-erro', 'Valor deve ser um número maior que zero (o sinal é dado pelo tipo).', 'erro'); return; }
     if (FIN_TIPOS.indexOf(tipo) === -1) { finMsg('fin-lanc-erro', 'Selecione um tipo.', 'erro'); return; }
-    if (FIN_CATEGORIAS.indexOf(categoria) === -1) { finMsg('fin-lanc-erro', 'Selecione uma categoria.', 'erro'); return; }
+    if (!categoria) { finMsg('fin-lanc-erro', 'Selecione a conta.', 'erro'); return; }
     if (parceiroId && !finParceiroById(parceiroId)) { finMsg('fin-lanc-erro', 'Parceiro inválido.', 'erro'); return; }
     // Categoria de parceria sem parceiro é exatamente o erro que o Excel produzia.
     if (!parceiroId && FIN_CATEGORIAS_PARCERIA.indexOf(categoria) > -1) {
@@ -1583,8 +1656,9 @@ async function finSalvarLancamento() {
             const sel = document.getElementById('fin-painel-ano');
             if (sel) sel.value = ano;
         }
-        finResetLancamentoForm();
+        finResetLancamentoForm(true);
         await finLoadAno();
+        document.getElementById('fin-lanc-descricao').focus();
     } catch (e) {
         finMsg('fin-lanc-erro', 'Erro ao salvar: ' + e.message, 'erro');
     }
@@ -1976,6 +2050,13 @@ async function finImportGravar() {
         finMsg('fin-import-status', 'Erro na importação: ' + e.message, 'erro');
     }
 }
+
+// Enter em qualquer campo do formulario salva (lancamento em sequencia, sem mouse).
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    const box = e.target.closest && e.target.closest('#fin-lanc-form');
+    if (box && e.target.tagName !== 'BUTTON') { e.preventDefault(); finSalvarLancamento(); }
+});
 
 // ---------- entrada do módulo ----------
 function finOnTab(id) {

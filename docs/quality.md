@@ -4,6 +4,7 @@
 - `npm run lint`: ESLint (`app.js`, `scripts/`). Linha de base: ver `docs/setup.md`.
 - `npm run format:check`: Prettier nos arquivos de ferramenta (nao reformata o legado).
 - `npm test`: testes de configuracao do deploy.
+- `npm run test:ui`: lançamento rápido do financeiro em Chromium, com Firestore em memória (não toca produção; sem Tailwind, então não valida o visual).
 - `npm run smoke`: abre o site em Chromium local (precisa de rede/CDN).
 - `npm run check`: lint + formato + testes. CI: `.github/workflows/check.yml`.
 
