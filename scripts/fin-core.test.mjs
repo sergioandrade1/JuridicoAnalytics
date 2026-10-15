@@ -100,3 +100,32 @@ test("fluxo mensal ignora mes invalido sem quebrar", () => {
   );
   assert.equal(r.resumo[11].saldoFinal, 0);
 });
+
+test("conta garantida: variacao, saldo do mes e reducao como na planilha", () => {
+  const { finGarantiaResumo } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  // Valores reais de janeiro: devedor inicial 177.329,82.
+  const r = [
+    { id: "a", data: "2026-01-02", mes: 1, saldo: 178704.82 },
+    { id: "b", data: "2026-01-05", mes: 1, saldo: 267564.82 },
+    { id: "c", data: "2026-02-03", mes: 2, saldo: 260000 },
+  ];
+  const g = finGarantiaResumo(r, 177329.82);
+  assert.equal(g.variacoes.a, 1375);
+  assert.equal(g.variacoes.b, 88860);
+  assert.equal(g.meses[0].saldoFinal, 267564.82);
+  assert.equal(g.meses[0].reducao, -90235); // dívida subiu
+  assert.equal(g.meses[1].reducao, 7564.82);
+  assert.equal(g.meses[2].saldoFinal, null);
+  assert.equal(g.atual, 260000);
+});
+
+test("conta garantida sem registros usa o devedor inicial", () => {
+  const { finGarantiaResumo } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  const g = finGarantiaResumo([], 500);
+  assert.equal(g.atual, 500);
+  assert.equal(g.meses[0].reducao, null);
+});

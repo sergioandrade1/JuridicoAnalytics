@@ -108,6 +108,27 @@ function finFluxoMensal(lancamentos, saldoInicial) {
     return { grupos: grupos, resumo: resumo };
 }
 
+// Controle da Conta Garantida (aba "Controle Conta Garantida" da planilha):
+// registros = [{id, data 'AAAA-MM-DD', mes, saldo}] com o saldo devedor do dia.
+// Variacao = saldo - saldo anterior (o primeiro compara com o devedor inicial).
+// Saldo do mes = ultimo registro do mes. Reducao do mes = saldo do mes anterior
+// menos o do mes (janeiro parte do inicial); so existe se os dois meses tem registro.
+function finGarantiaResumo(registros, inicial) {
+    const ordem = (registros || []).map((r, i) => ({ r: r, i: i }))
+        .sort((a, b) => String(a.r.data).localeCompare(String(b.r.data)) || a.i - b.i).map(x => x.r);
+    const ini = Number(inicial) || 0;
+    const variacoes = {};
+    let ant = ini;
+    ordem.forEach(r => { variacoes[r.id] = Math.round((Number(r.saldo) - ant) * 100) / 100; ant = Number(r.saldo); });
+    const meses = Array.from({ length: 12 }, () => ({ saldoFinal: null, reducao: null }));
+    ordem.forEach(r => { const m = Number(r.mes) - 1; if (m >= 0 && m < 12) meses[m].saldoFinal = Number(r.saldo); });
+    meses.forEach((x, m) => {
+        const base = m === 0 ? ini : meses[m - 1].saldoFinal;
+        if (x.saldoFinal != null && base != null) x.reducao = Math.round((base - x.saldoFinal) * 100) / 100;
+    });
+    return { ordem: ordem, variacoes: variacoes, meses: meses, atual: ordem.length ? Number(ordem[ordem.length - 1].saldo) : ini };
+}
+
 if (typeof module !== 'undefined') {
-    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finFluxoMensal };
+    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finFluxoMensal, finGarantiaResumo };
 }

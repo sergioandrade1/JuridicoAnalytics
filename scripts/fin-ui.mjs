@@ -17,7 +17,7 @@ const types = {
 // Firestore em memoria, com a parte da API que o modulo usa.
 const FAKE_FIREBASE = `
 (function () {
-  const store = { parceiros: {}, lancamentos: {}, configFinanceiro: {} };
+  const store = { parceiros: {}, lancamentos: {}, configFinanceiro: {}, contaGarantida: {} };
   let n = 0;
   const snap = (col) => ({ docs: Object.entries(store[col]).map(([id, d]) => ({ id, data: () => d })) });
   const doc = (col, id) => ({
@@ -173,6 +173,33 @@ try {
   const filtradas = await page.locator("#fin-lanc-body tr").count();
   assert.equal(filtradas, 1);
   console.log("OK: fluxo de caixa e drill-down");
+
+  // 5) Conta Garantida: devedor inicial, saldo do dia com Enter, variacao e Fluxo
+  await page.fill("#fin-gar-inicial", "177329.82");
+  await page.press("#fin-gar-inicial", "Tab");
+  await page.fill("#fin-gar-data", "2026-01-02");
+  await page.fill("#fin-gar-saldo", "178704.82");
+  await page.press("#fin-gar-saldo", "Enter");
+  await page.waitForTimeout(300);
+  await page.fill("#fin-gar-saldo", "267564.82");
+  await page.press("#fin-gar-saldo", "Enter"); // mesma data: corrige, nao duplica
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator("#fin-gar-body tr").count(), 1);
+  assert.match(await page.locator("#fin-gar-atual").innerText(), /267\.564,82/);
+  assert.match(await page.locator("#fin-gar-body").innerText(), /90\.235,00/); // variacao sobre o inicial
+  assert.match(await page.locator("#fin-gar-meses").innerText(), /267\.564,82/);
+  await page.evaluate(() => finRenderFluxo());
+  assert.match(
+    await page.locator("#fin-fluxo-body").innerText(),
+    /Saldo pendente conta garantida[\s\S]*267\.564,82/,
+  );
+  assert.equal(
+    await page.evaluate(
+      () => window.__store.configFinanceiro["2026"].saldoInicial,
+    ),
+    0.33,
+  ); // merge preserva
+  console.log("OK: conta garantida");
 
   await page.screenshot({ path: process.env.SHOT ?? "/tmp/fin-lanc.png" });
   const relevantes = erros.filter(
