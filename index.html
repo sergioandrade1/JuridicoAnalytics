@@ -1889,13 +1889,22 @@ function finRenderFluxo() {
         contas.forEach(c => {
             html += `<tr class="hover:bg-slate-50/60"><td class="px-3 py-1.5 pl-9 text-xs">${sanitize(c.conta)}</td>`
                 + c.valores.map((v, m) => `<td class="${th} text-xs">${v
-                    ? `<a href="#" class="text-slate-700 hover:text-[#960018] hover:underline" onclick="finFluxoAbrirConta('${c.codigo}',${m + 1});return false;">${finBRL(v)}</a>`
+                    ? `<a href="#" class="text-slate-700 hover:text-[#960018] hover:underline" data-conta="${sanitize(c.codigo)}" data-mes="${m + 1}">${finBRL(v)}</a>`
                     : '<span class="text-slate-300">—</span>'}</td>`).join('')
                 + `<td class="${th} text-xs font-semibold">${finBRL(c.total)}</td></tr>`;
         });
     });
     body.innerHTML = html;
 }
+
+// Clique delegado: o codigo da conta vem de dados importados e nunca entra em
+// atributo onclick (evita injecao de codigo).
+document.addEventListener('click', e => {
+    const a = e.target.closest ? e.target.closest('#fin-fluxo-body a[data-conta]') : null;
+    if (!a) return;
+    e.preventDefault();
+    finFluxoAbrirConta(a.dataset.conta, Number(a.dataset.mes));
+});
 
 function finFluxoToggle(gi) {
     if (finFluxoAbertos.has(gi)) finFluxoAbertos.delete(gi); else finFluxoAbertos.add(gi);

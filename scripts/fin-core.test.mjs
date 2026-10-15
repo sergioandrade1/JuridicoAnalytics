@@ -22,8 +22,16 @@ test("tipo vem do codigo da conta", () => {
 test("sinal do saldo por tipo", () => {
   assert.equal(finSinal("Entrada"), 1);
   assert.equal(finSinal("Saída"), -1);
-  assert.equal(finSinal("Repasse"), -1);
-  assert.equal(finSinal("Espécie"), 0);
+  // como na planilha, so Entrada e Saida movimentam o saldo
+  for (const t of [
+    "Repasse",
+    "Despesa Conta PF",
+    "Recebimento Repasse",
+    "Espécie",
+    "",
+  ]) {
+    assert.equal(finSinal(t), 0, t);
+  }
   assert.equal(finSinal(""), 0);
 });
 
@@ -79,8 +87,8 @@ test("fluxo mensal: saldo encadeia os meses e agrupa por codigo da conta", () =>
   assert.equal(r.resumo[0].resultado, 800);
   assert.equal(r.resumo[0].saldoFinal, 900);
   assert.equal(r.resumo[1].saldoInicial, 900);
-  assert.equal(r.resumo[1].saidas, 60);
-  assert.equal(r.resumo[11].saldoFinal, 840);
+  assert.equal(r.resumo[1].saidas, 50); // a conta antiga fica fora dos totais
+  assert.equal(r.resumo[11].saldoFinal, 850);
   const energia = r.grupos
     .flatMap((g) => g.contas)
     .find((c) => c.codigo === "2.01.008");
@@ -88,7 +96,7 @@ test("fluxo mensal: saldo encadeia os meses e agrupa por codigo da conta", () =>
     [energia.valores[0], energia.valores[1], energia.total],
     [200, 50, 250],
   );
-  const fora = r.grupos.find((g) => g.grupo === "Fora do plano");
+  const fora = r.grupos.find((g) => g.grupo.startsWith("Fora do plano"));
   assert.equal(fora.total[1], 10);
 });
 
@@ -128,4 +136,63 @@ test("conta garantida sem registros usa o devedor inicial", () => {
   const g = finGarantiaResumo([], 500);
   assert.equal(g.atual, 500);
   assert.equal(g.meses[0].reducao, null);
+});
+
+test("fluxo soma so os tipos que a planilha soma em cada conta", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const l = [
+    {
+      mes: 1,
+      tipo: "Entrada",
+      valor: 1000,
+      categoria: "1.01.04 - Honorários - Mensal",
+    },
+    {
+      mes: 1,
+      tipo: "Saída",
+      valor: 300,
+      categoria: "2.01.008 - Energia Elétrica",
+    },
+    // 2.* aceita Recebimento Repasse (formula da planilha), mas Repasse/Despesa Conta PF nao
+    {
+      mes: 1,
+      tipo: "Recebimento Repasse",
+      valor: 50,
+      categoria: "2.02.001 - Parceria Jurídica",
+    },
+    {
+      mes: 1,
+      tipo: "Despesa Conta PF",
+      valor: 8000,
+      categoria: "2.02.002 - Honorários Fixos",
+    },
+    { mes: 1, tipo: "", valor: 7, categoria: "2.01.008 - Energia Elétrica" },
+    // Espécie fica fora dos totais de entrada
+    {
+      mes: 1,
+      tipo: "Espécie",
+      valor: 5000,
+      categoria: "1.04.01 - Honorários - Recebimento em Espécie",
+    },
+  ];
+  const r = finFluxoMensal(l, 0.33);
+  assert.equal(r.resumo[0].entradas, 1000);
+  assert.equal(r.resumo[0].saidas, 350);
+  assert.equal(r.resumo[0].saldoFinal, 650.33);
+  const fora = r.grupos.find((g) => g.grupo.startsWith("Fora do plano"));
+  assert.equal(fora.total[0], 8007); // Despesa Conta PF + tipo vazio aparecem, sem entrar nos totais
+  const esp = r.grupos
+    .flatMap((g) => g.contas)
+    .find((c) => c.codigo === "1.04.01");
+  assert.equal(esp.valores[0], 5000);
+});
+
+test("saldo corrente ignora Repasse, Despesa Conta PF e Recebimento Repasse", () => {
+  const l = [
+    { id: "1", data: "2026-01-05", tipo: "Entrada", valor: 100 },
+    { id: "2", data: "2026-01-05", tipo: "Despesa Conta PF", valor: 1518 },
+    { id: "3", data: "2026-01-05", tipo: "Recebimento Repasse", valor: 40 },
+    { id: "4", data: "2026-01-05", tipo: "Saída", valor: 10 },
+  ];
+  assert.equal(finCalcSaldos(l, 0).saldoFinal, 90);
 });

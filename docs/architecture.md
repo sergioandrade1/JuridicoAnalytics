@@ -15,10 +15,10 @@
 
 ## Financeiro: saldo inicial
 Guardado em `configFinanceiro/{ano}` no Firestore. Se as regras ainda não liberam essa coleção, a tela avisa e usa o valor do navegador.
-Saldo corrente: Entrada/Recebimento Repasse somam; Saída/Repasse/Despesa Conta PF subtraem; Espécie não move o saldo.
+Saldo corrente: só Entrada soma e Saída subtrai (Repasse, Despesa Conta PF, Recebimento Repasse e Espécie não movem o saldo).
 
 ## Financeiro: Fluxo de Caixa
-Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta pelo código (texto antes de " - "); contas fora do plano aparecem em "Fora do plano". Totais de entradas/saídas e saldo seguem o sinal do tipo (Espécie não entra no total). Clique numa célula abre Lançamentos filtrado por conta e mês.
+Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta pelo código (texto antes de " - "); cada linha soma só os tipos que a planilha soma (1.01–1.03 Entrada; 1.04 Espécie; 2.* Saída e Recebimento Repasse). Contas fora do plano ou tipos incompatíveis (ex.: vazio, Despesa Conta PF) aparecem em "Fora do plano / tipo incompatível", fora dos totais. O saldo corrente da lista só move com Entrada e Saída, como na planilha. Clique numa célula abre Lançamentos filtrado por conta e mês.
 
 ## Financeiro: Conta Garantida
 Coleção `contaGarantida` (um registro por dia: data, ano, mes, saldo, obs) e `garantiaInicial` em `configFinanceiro/{ano}`. Salvar na mesma data corrige o registro. Redução do mês = saldo do mês anterior − saldo do mês (só quando os dois meses têm registro); o saldo do mês alimenta a linha "Saldo pendente conta garantida" do Fluxo. **As regras do Firestore precisam liberar `configFinanceiro` e `contaGarantida`.**

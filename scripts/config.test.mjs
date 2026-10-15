@@ -25,3 +25,12 @@ test("netlify publica a raiz sem build", () => {
 test("app.js define showSendStatus (regressao: era chamada sem definicao)", () => {
   assert.match(read("app.js"), /function showSendStatus\(/);
 });
+
+test("fluxo nao injeta texto de categoria em atributo onclick (regressao XSS)", () => {
+  assert.ok(!read("index.html").includes("finFluxoAbrirConta('${"));
+  assert.match(read("index.html"), /data-conta="\$\{sanitize\(c\.codigo\)\}"/);
+});
+
+test("_headers cobre fin-core.js", () => {
+  assert.ok(read("_headers").includes("/fin-core.js"));
+});

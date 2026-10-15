@@ -28,12 +28,12 @@ function finTipoDaConta(conta) {
     return null;
 }
 
-// Efeito do tipo no saldo. A planilha so conhece Entrada (+) e Saida (-);
-// Repasse e Despesa Conta PF saem do caixa, Recebimento Repasse entra e
-// Espécie nao movimenta a conta bancaria.
+// Efeito do tipo no saldo corrente. Como na planilha, so Entrada (+) e Saida (-)
+// movimentam o saldo; Repasse, Despesa Conta PF, Recebimento Repasse e Especie
+// sao pernas de controle e ficam fora (0).
 function finSinal(tipo) {
-    if (tipo === 'Entrada' || tipo === 'Recebimento Repasse') return 1;
-    if (tipo === 'Saída' || tipo === 'Repasse' || tipo === 'Despesa Conta PF') return -1;
+    if (tipo === 'Entrada') return 1;
+    if (tipo === 'Saída') return -1;
     return 0;
 }
 
@@ -61,11 +61,22 @@ function finCodigoConta(conta) {
     return String(conta || '').split(' - ')[0].trim();
 }
 
-// Fluxo de Caixa Mensal (aba "Fluxo de Caixa Mensal" da planilha): uma linha por
-// conta do plano, uma coluna por mes. Valores das celulas = soma dos valores
-// absolutos da conta no mes. Entradas/saidas/saldo seguem o sinal do tipo, a
-// mesma regra do saldo corrente da lista de lancamentos.
-// Contas fora do plano vao para o grupo "Fora do plano", para nada sumir.
+// Tipos que a planilha soma em cada familia de conta (formulas SUMPRODUCT da aba
+// "Fluxo de Caixa Mensal"): 1.01-1.03 Entrada; 1.04 Especie; 2.* Saida e
+// Recebimento Repasse. Lancamento com outro tipo nao entra na linha nem nos totais.
+function finTipoCasaConta(codigo, tipo) {
+    if (/^1\.0[123]\./.test(codigo)) return tipo === 'Entrada';
+    if (codigo.indexOf('1.04.') === 0) return tipo === 'Espécie';
+    if (codigo.indexOf('2.') === 0) return tipo === 'Saída' || tipo === 'Recebimento Repasse';
+    return false;
+}
+
+// Fluxo de Caixa Mensal: uma linha por conta do plano, uma coluna por mes.
+// Cada celula soma os valores absolutos da conta no mes, so dos tipos que a
+// planilha soma (finTipoCasaConta). Total de entradas = contas 1.01-1.03; total
+// de saidas = contas 2.*; saldo = anterior + entradas - saidas (como na planilha).
+// O que nao casa (conta fora do plano ou tipo incompativel, ex.: tipo vazio) vai
+// para "Fora do plano / tipo incompatível": aparece, mas nao entra nos totais.
 function finFluxoMensal(lancamentos, saldoInicial) {
     const zeros = () => new Array(12).fill(0);
     const grupos = FIN_PLANO.map(g => ({
@@ -74,20 +85,20 @@ function finFluxoMensal(lancamentos, saldoInicial) {
     }));
     const porCodigo = {};
     grupos.forEach(g => g.contas.forEach(c => { porCodigo[c.codigo] = { g: g, c: c }; }));
-    const fora = { grupo: 'Fora do plano', tipo: '', total: zeros(), contas: [] };
+    const fora = { grupo: 'Fora do plano / tipo incompatível', tipo: '', total: zeros(), contas: [] };
     const resumo = Array.from({ length: 12 }, () => ({ entradas: 0, saidas: 0, resultado: 0, saldoInicial: 0, saldoFinal: 0 }));
 
     (lancamentos || []).forEach(l => {
         const m = Number(l.mes) - 1;
         if (!(m >= 0 && m < 12)) return;
         const valor = Math.abs(Number(l.valor) || 0);
-        const sinal = finSinal(l.tipo);
-        if (sinal > 0) resumo[m].entradas += valor; else if (sinal < 0) resumo[m].saidas += valor;
-
         const codigo = finCodigoConta(l.categoria);
         let alvo = porCodigo[codigo];
-        if (!alvo) {
-            const nome = String(l.categoria || '').trim() || '(sem conta)';
+        if (alvo && finTipoCasaConta(codigo, l.tipo)) {
+            if (codigo.indexOf('1.0') === 0 && codigo.indexOf('1.04.') !== 0) resumo[m].entradas += valor;
+            else if (codigo.indexOf('2.') === 0) resumo[m].saidas += valor;
+        } else {
+            const nome = (String(l.categoria || '').trim() || '(sem conta)') + (alvo ? ' · tipo ' + (l.tipo || 'vazio') : '');
             let c = fora.contas.find(x => x.conta === nome);
             if (!c) { c = { conta: nome, codigo: codigo, valores: zeros(), total: 0 }; fora.contas.push(c); }
             alvo = { g: fora, c: c };
@@ -130,5 +141,5 @@ function finGarantiaResumo(registros, inicial) {
 }
 
 if (typeof module !== 'undefined') {
-    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finFluxoMensal, finGarantiaResumo };
+    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finTipoCasaConta, finFluxoMensal, finGarantiaResumo };
 }
