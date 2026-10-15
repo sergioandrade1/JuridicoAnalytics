@@ -10,7 +10,7 @@
 
 - Instalar: `npm install`
 - Desenvolver: `npm run dev` (http://localhost:8080; o dominio `localhost` e permitido pelo index)
-- Lint: `npm run lint` (ESLint em `app.js` e `scripts/`)
+- Lint: `npm run lint` (ESLint em `app.js`, `fin-core.js` e `scripts/`)
 - Formato: `npm run format:check`
 - Testes: `npm test` (config do deploy e referencias)
 - Teste de interface do financeiro: `npm run test:ui` (Firebase e CDNs falsos, sem rede)

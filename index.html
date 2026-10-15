@@ -555,6 +555,7 @@
                       <button onclick="finExportFluxo()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-[#960018]/20 text-[#960018] hover:bg-[#960018]/5 transition-colors"><i class="fa-solid fa-file-excel mr-1"></i>Exportar</button>
                   </div>
               </div>
+              <div id="fin-fluxo-erro" class="hidden m-3"></div>
               <div class="overflow-x-auto custom-scrollbar max-h-[75vh]">
                   <table class="text-sm text-left text-slate-600 w-full">
                       <thead id="fin-fluxo-head" class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10"></thead>
@@ -662,6 +663,7 @@
                       <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-conta" onchange="finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
+                      <button id="fin-limpar-filtros" onclick="finLimparFiltros()" class="hidden py-1.5 px-3 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 text-amber-800">Limpar filtros ✕</button>
                   </div>
                   <div id="fin-saldo-erro" class="hidden m-3"></div>
                   <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
@@ -1147,9 +1149,11 @@ async function finLoadConfig() {
             FIN.garantiaInicial = Number(d.data().garantiaInicial) || 0;
         }
         finMsg('fin-saldo-erro', '');
+        finMsg('fin-fluxo-erro', '');
     } catch (e) {
-        FIN.saldoInicial = Number(localStorage.getItem('fin_saldo_' + FIN.ano)) || 0;
-        finMsg('fin-saldo-erro', 'Sem permissão para ler o saldo inicial no Firestore (libere a coleção configFinanceiro nas regras). Usando o valor deste navegador.', 'alerta');
+        const aviso = 'Sem permissão para ler o saldo inicial no Firestore (libere a coleção configFinanceiro nas regras). Saldos mostrados partem de zero.';
+        finMsg('fin-saldo-erro', aviso, 'alerta');
+        finMsg('fin-fluxo-erro', aviso, 'alerta');
     }
 }
 
@@ -1157,7 +1161,6 @@ async function finSalvarSaldoInicial() {
     if (!finRequire()) return;
     const v = parseFloat(document.getElementById('fin-saldo-inicial').value);
     FIN.saldoInicial = isFinite(v) ? v : 0;
-    try { localStorage.setItem('fin_saldo_' + FIN.ano, String(FIN.saldoInicial)); } catch (e) { /* storage indisponivel */ }
     try {
         await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).set({
             saldoInicial: FIN.saldoInicial,
@@ -1165,8 +1168,9 @@ async function finSalvarSaldoInicial() {
             atualizadoPor: FIN.user ? FIN.user.email : null
         }, { merge: true });
         finMsg('fin-saldo-erro', '');
+        finMsg('fin-fluxo-erro', '');
     } catch (e) {
-        finMsg('fin-saldo-erro', 'Não salvou no Firestore (' + e.message + '). Valor mantido só neste navegador.', 'alerta');
+        finMsg('fin-saldo-erro', 'Não salvou no Firestore (' + e.message + '). O valor vale só até recarregar a página; peça para liberar configFinanceiro nas regras.', 'erro');
     }
     finRenderLancamentos();
     finRenderFluxo();
@@ -1557,12 +1561,13 @@ function finRenderLancamentos() {
     const lista = calc.ordem.filter(l => {
         if (fMes && Number(l.mes) !== Number(fMes)) return false;
         if (fTipo && l.tipo !== fTipo) return false;
-        if (fConta && finCodigoConta(l.categoria) !== fConta) return false;
+        if (fConta && finCodigoConta(l.categoria) !== (fConta === '__sem__' ? '' : fConta)) return false;
         if (fParc === '__none__' && l.parceiroId) return false;
         if (fParc && fParc !== '__none__' && l.parceiroId !== fParc) return false;
         return true;
     });
 
+    document.getElementById('fin-limpar-filtros').classList.toggle('hidden', !(fMes || fParc || fTipo || fConta));
     const cel = (rot, v, cor) => `<div class="bg-white py-2"><div class="text-[10px] uppercase text-slate-400 font-bold">${rot}</div><div class="font-bold ${cor}">${finBRL(v)}</div></div>`;
     document.getElementById('fin-lanc-resumo').innerHTML =
         cel('Entradas no ano', calc.entradas, 'text-emerald-600') + cel('Saídas no ano', calc.saidas, 'text-red-600')
@@ -1592,6 +1597,11 @@ function finRenderLancamentos() {
 }
 
 // manterData: apos salvar, a data fica para o proximo lancamento do mesmo dia.
+function finLimparFiltros() {
+    ['fin-filtro-mes', 'fin-filtro-parceiro', 'fin-filtro-tipo', 'fin-filtro-conta'].forEach(id => { document.getElementById(id).value = ''; });
+    finRenderLancamentos();
+}
+
 function finResetLancamentoForm(manterData) {
     document.getElementById('fin-lanc-id').value = '';
     if (!manterData) document.getElementById('fin-lanc-data').value = '';
@@ -1643,7 +1653,9 @@ function finAtualizaCamposForm() {
 function finAoMudarCategoria() {
     const cat = document.getElementById('fin-lanc-categoria').value;
     const tipo = finTipoDaConta(cat);
-    if (tipo) document.getElementById('fin-lanc-tipo').value = tipo;
+    // Ao editar, o tipo ja gravado (ex.: Recebimento Repasse) nao e sobrescrito.
+    const editando = document.getElementById('fin-lanc-id').value && document.getElementById('fin-lanc-tipo').value;
+    if (tipo && !editando) document.getElementById('fin-lanc-tipo').value = tipo;
     if (!finCategoriaDeParceria(cat)) document.getElementById('fin-lanc-parceiro').value = '';
     finAtualizaCamposForm();
     finPreviewLimite();
@@ -1799,15 +1811,14 @@ async function finSalvarGarantia() {
     const [ano, mes] = data.split('-').map(Number);
     try {
         // Um registro por dia: salvar de novo na mesma data corrige o saldo.
-        const existente = FIN.garantia.find(r => r.data === data);
         const dados = {
             data: data, ano: ano, mes: mes, saldo: saldo,
             obs: document.getElementById('fin-gar-obs').value.trim(),
             atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
             atualizadoPor: FIN.user ? FIN.user.email : null
         };
-        if (existente) await FIN.db.collection('contaGarantida').doc(existente.id).update(dados);
-        else await FIN.db.collection('contaGarantida').add(dados);
+        // id = data: dois usuarios no mesmo dia gravam o mesmo documento.
+        await FIN.db.collection('contaGarantida').doc(data).set(dados, { merge: true });
         document.getElementById('fin-gar-saldo').value = '';
         document.getElementById('fin-gar-obs').value = '';
         finMsg('fin-gar-erro', '');
@@ -1920,7 +1931,13 @@ function finFluxoToggleTudo() {
 
 // Clique numa celula: abre a lista ja filtrada por conta e mes.
 function finFluxoAbrirConta(codigo, mes) {
-    document.getElementById('fin-filtro-conta').value = codigo;
+    const sel = document.getElementById('fin-filtro-conta');
+    const valor = codigo || '__sem__';
+    // Conta fora do plano nao existe no select: cria a opcao para o filtro valer.
+    if (![].some.call(sel.options, o => o.value === valor)) {
+        sel.insertAdjacentHTML('beforeend', `<option value="${sanitize(valor)}">${sanitize(codigo || '(sem conta)')} (fora do plano)</option>`);
+    }
+    sel.value = valor;
     document.getElementById('fin-filtro-mes').value = String(mes);
     const btn = [].find.call(document.querySelectorAll('.fin-nav'), b => (b.getAttribute('onclick') || '').indexOf("'fin-lancamentos'") > -1);
     switchTab('fin-lancamentos', btn);
@@ -1935,7 +1952,9 @@ function finExportFluxo() {
         linha('Total de entradas', r.map(x => x.entradas)),
         linha('Total de saídas', r.map(x => x.saidas)),
         linha('Resultado do mês', r.map(x => x.resultado)),
-        ['Saldo final'].concat(r.map(x => x.saldoFinal), r[11].saldoFinal)];
+        ['Saldo final'].concat(r.map(x => x.saldoFinal), r[11].saldoFinal),
+        ['Saldo pendente conta garantida'].concat(
+            finGarantiaResumo(FIN.garantia, FIN.garantiaInicial).meses.map(x => (x.saldoFinal == null ? '' : x.saldoFinal)), '')];
     f.grupos.forEach(g => {
         aoa.push(linha(g.grupo.toUpperCase(), g.total));
         g.contas.filter(c => c.total).forEach(c => aoa.push(linha(c.conta, c.valores)));

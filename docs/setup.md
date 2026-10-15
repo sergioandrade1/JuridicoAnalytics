@@ -33,3 +33,15 @@
 
 ## Manutenção
 Repetir o setup: rodar o prompt 12 do toolkit; personalizações são preservadas. Revisitar: avisos de lint (reduzir), `max-lines` (extrair módulos de `index.html`), fixar versões de CDN, regras do Firestore.
+
+## Financeiro (planilha Fluxo de Caixa 2026)
+Entregas feitas após o harness: lançamento rápido com plano de contas real, saldo corrente, aba Fluxo de Caixa (conta × mês, drill-down, exportação) e Conta Garantida. Regras de cálculo conferidas contra a planilha real (jan e fev batem em entradas e saídas); detalhes em `docs/architecture.md`.
+
+| Item | Estado | Evidência |
+|---|---|---|
+| Lógica (`fin-core.js`) | Validado | `npm test` (17+ testes), comparação com valores reais |
+| Interface com Firestore falso | Validado | `npm run test:ui` |
+| Firestore real e regras (`configFinanceiro`, `contaGarantida`) | Pendente | Liberar as coleções nas regras e testar com login real |
+| Visual com Tailwind real | Pendente | Conferir as abas após o deploy |
+| Mês pela data vs. pela aba da planilha | Decisão pendente | 156 linhas da planilha têm data de outro mês |
+| Importar os 110 registros da Conta Garantida | Não feito | Hoje exige redigitar |

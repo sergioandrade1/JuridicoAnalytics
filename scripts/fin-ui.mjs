@@ -2,6 +2,7 @@
 // sem tocar no Firestore real). Uso: npm run test:ui
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { extname, join } from "node:path";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
@@ -59,7 +60,11 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}/`;
 
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium",
+  executablePath:
+    process.env.CHROMIUM_PATH ??
+    (existsSync("/opt/pw-browsers/chromium")
+      ? "/opt/pw-browsers/chromium"
+      : undefined),
 });
 const erros = [];
 try {
@@ -200,6 +205,60 @@ try {
     0.33,
   ); // merge preserva
   console.log("OK: conta garantida");
+
+  // 6) Conta fora do plano: drill-down filtra de verdade; filtros podem ser limpos
+  await page.evaluate(() => {
+    window.__store.lancamentos.fora1 = {
+      data: "2026-03-01",
+      ano: 2026,
+      mes: 3,
+      tipo: "Saída",
+      valor: 10,
+      categoria: "9.99.999 - Antiga",
+      descricao: "x",
+    };
+    window.__store.lancamentos.rr1 = {
+      data: "2026-03-02",
+      ano: 2026,
+      mes: 3,
+      tipo: "Recebimento Repasse",
+      valor: 5,
+      categoria: "2.02.001 - Parceria Jurídica",
+      descricao: "rr",
+    };
+    return finLoadAno();
+  });
+  // fecha e reabre todos os grupos para incluir o grupo "Fora do plano", novo
+  await page.evaluate(() => {
+    finFluxoToggleTudo();
+    finFluxoToggleTudo();
+  });
+  await page
+    .locator('#fin-fluxo-body a[data-conta="9.99.999"]')
+    .first()
+    .click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.inputValue("#fin-filtro-conta"), "9.99.999");
+  assert.equal(await page.locator("#fin-lanc-body tr").count(), 1);
+  assert.ok(
+    !(await page
+      .locator("#fin-limpar-filtros")
+      .evaluate((e) => e.classList.contains("hidden"))),
+  );
+  await page.evaluate(() => finLimparFiltros());
+  assert.equal(await page.locator("#fin-lanc-body tr").count(), 4);
+
+  // 7) Editar e trocar a conta nao sobrescreve o tipo ja gravado
+  await page.evaluate(() => finEditLancamento("rr1"));
+  await page.selectOption("#fin-lanc-categoria", "2.01.008 - Energia Elétrica");
+  assert.equal(await page.inputValue("#fin-lanc-tipo"), "Recebimento Repasse");
+  console.log("OK: fora do plano, filtros e edicao");
+
+  // 8) Conta garantida: id = data (mesma data nunca duplica)
+  assert.deepEqual(
+    await page.evaluate(() => Object.keys(window.__store.contaGarantida)),
+    ["2026-01-02"],
+  );
 
   await page.screenshot({ path: process.env.SHOT ?? "/tmp/fin-lanc.png" });
   const relevantes = erros.filter(
