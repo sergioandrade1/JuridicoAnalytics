@@ -320,6 +320,7 @@
       <div id="grupo-nav-financeiro" class="hidden">
         <p class="sidebar-section-label text-[10px] font-bold uppercase tracking-widest px-3 mb-2 mt-1" style="color:rgba(212,175,55,.7)">Financeiro</p>
         <button onclick="switchTab('fin-painel',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-handshake w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Painel de Parcerias</span></button>
+        <button onclick="switchTab('fin-fluxo',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-table w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Fluxo de Caixa</span></button>
         <button onclick="switchTab('fin-lancamentos',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-money-bill-transfer w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Lançamentos</span></button>
         <button onclick="switchTab('fin-parceiros',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-address-book w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Parceiros</span></button>
         <button onclick="switchTab('fin-import',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-file-import w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Importar planilha</span></button>
@@ -540,6 +541,28 @@
           </div>
       </div>
 
+      <div id="tab-fin-fluxo" class="tab-content hidden fade-in space-y-6">
+          <div class="fin-scope bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div class="p-4 border-b border-slate-100 bg-[#960018]/5 flex flex-wrap justify-between items-center gap-3">
+                  <div>
+                      <h3 class="font-bold text-[#4A0404] text-base">Fluxo de Caixa Mensal</h3>
+                      <p class="text-[11px] text-slate-500 mt-0.5">Conta × mês, calculado dos lançamentos. Clique num grupo para abrir e num valor para ver os lançamentos.</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                      <select id="fin-fluxo-ano" onchange="finSetAno(this.value)" class="fin-input-sm"></select>
+                      <button onclick="finFluxoToggleTudo()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Abrir/fechar grupos</button>
+                      <button onclick="finExportFluxo()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-[#960018]/20 text-[#960018] hover:bg-[#960018]/5 transition-colors"><i class="fa-solid fa-file-excel mr-1"></i>Exportar</button>
+                  </div>
+              </div>
+              <div class="overflow-x-auto custom-scrollbar max-h-[75vh]">
+                  <table class="text-sm text-left text-slate-600 w-full">
+                      <thead id="fin-fluxo-head" class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10"></thead>
+                      <tbody id="fin-fluxo-body" class="divide-y divide-slate-100"></tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
       <div id="tab-fin-lancamentos" class="tab-content hidden fade-in space-y-6">
           <div class="fin-scope grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
@@ -592,6 +615,7 @@
                       <select id="fin-filtro-mes" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-conta" onchange="finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
                   </div>
                   <div id="fin-saldo-erro" class="hidden m-3"></div>
                   <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
@@ -1093,6 +1117,7 @@ async function finSalvarSaldoInicial() {
         finMsg('fin-saldo-erro', 'Não salvou no Firestore (' + e.message + '). Valor mantido só neste navegador.', 'alerta');
     }
     finRenderLancamentos();
+    finRenderFluxo();
 }
 
 async function finLoadAno() {
@@ -1105,6 +1130,7 @@ async function finLoadAno() {
         finRenderParceiros();
         finPopulaSelects();
         finRenderLancamentos();
+        finRenderFluxo();
     } catch (e) {
         console.error(e);
         alert('Erro ao carregar dados do Firestore: ' + e.message);
@@ -1113,16 +1139,19 @@ async function finLoadAno() {
 
 function finSetAno(ano) {
     FIN.ano = Number(ano);
+    ['fin-painel-ano', 'fin-fluxo-ano'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ano; });
     finLoadAno();
 }
 
 function finPopulaAnos() {
-    const sel = document.getElementById('fin-painel-ano');
-    if (!sel || sel.options.length) return;
     const atual = new Date().getFullYear();
-    for (let a = atual + 1; a >= atual - 5; a--) {
-        sel.insertAdjacentHTML('beforeend', `<option value="${a}" ${a === FIN.ano ? 'selected' : ''}>${a}</option>`);
-    }
+    ['fin-painel-ano', 'fin-fluxo-ano'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel || sel.options.length) return;
+        for (let a = atual + 1; a >= atual - 5; a--) {
+            sel.insertAdjacentHTML('beforeend', `<option value="${a}" ${a === FIN.ano ? 'selected' : ''}>${a}</option>`);
+        }
+    });
 }
 
 // ---------- REGRA DO PAINEL ----------
@@ -1446,6 +1475,10 @@ function finPopulaSelects() {
     if (fTipo && !fTipo.options.length) {
         fTipo.innerHTML = `<option value="">Todos os tipos</option>` + FIN_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('');
     }
+    const fConta = document.getElementById('fin-filtro-conta');
+    if (fConta && !fConta.options.length) {
+        fConta.innerHTML = `<option value="">Todas as contas</option>` + FIN_CONTAS.map(c => `<option value="${finCodigoConta(c)}">${c}</option>`).join('');
+    }
     const fParc = document.getElementById('fin-filtro-parceiro');
     if (fParc) {
         const atual = fParc.value;
@@ -1461,6 +1494,7 @@ function finRenderLancamentos() {
     const fMes = document.getElementById('fin-filtro-mes').value;
     const fParc = document.getElementById('fin-filtro-parceiro').value;
     const fTipo = document.getElementById('fin-filtro-tipo').value;
+    const fConta = document.getElementById('fin-filtro-conta').value;
     const inp = document.getElementById('fin-saldo-inicial');
     if (inp && document.activeElement !== inp) inp.value = FIN.saldoInicial || '';
 
@@ -1469,6 +1503,7 @@ function finRenderLancamentos() {
     const lista = calc.ordem.filter(l => {
         if (fMes && Number(l.mes) !== Number(fMes)) return false;
         if (fTipo && l.tipo !== fTipo) return false;
+        if (fConta && finCodigoConta(l.categoria) !== fConta) return false;
         if (fParc === '__none__' && l.parceiroId) return false;
         if (fParc && fParc !== '__none__' && l.parceiroId !== fParc) return false;
         return true;
@@ -1669,6 +1704,91 @@ async function finExcluirLancamento(id) {
     if (!confirm('Excluir este lançamento?')) return;
     await FIN.db.collection('lancamentos').doc(id).delete();
     await finLoadAno();
+}
+
+// ---------- FLUXO DE CAIXA MENSAL ----------
+const finFluxoAbertos = new Set();
+
+function finRenderFluxo() {
+    const head = document.getElementById('fin-fluxo-head');
+    const body = document.getElementById('fin-fluxo-body');
+    if (!head || !body) return;
+    const f = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial);
+    const th = 'px-3 py-2 text-right whitespace-nowrap';
+    head.innerHTML = `<tr><th class="px-3 py-2 min-w-[18rem]">Conta</th>`
+        + FIN_MESES.map(m => `<th class="${th}">${m}</th>`).join('') + `<th class="${th}">Ano</th></tr>`;
+
+    const money = v => v ? finBRL(v) : '<span class="text-slate-300">—</span>';
+    const linhaResumo = (rot, valores, total, cls) =>
+        `<tr class="${cls} font-bold"><td class="px-3 py-2">${rot}</td>`
+        + valores.map(v => `<td class="${th}">${finBRL(v)}</td>`).join('')
+        + `<td class="${th}">${total == null ? '' : finBRL(total)}</td></tr>`;
+    const r = f.resumo;
+    const soma = k => r.reduce((a, x) => a + x[k], 0);
+
+    let html = linhaResumo('Saldo inicial', r.map(x => x.saldoInicial), r[0].saldoInicial, 'bg-slate-50')
+        + linhaResumo('Total de entradas', r.map(x => x.entradas), soma('entradas'), 'text-emerald-700')
+        + linhaResumo('Total de saídas', r.map(x => x.saidas), soma('saidas'), 'text-red-700')
+        + linhaResumo('Resultado do mês', r.map(x => x.resultado), soma('resultado'), 'bg-slate-50')
+        + linhaResumo('Saldo final', r.map(x => x.saldoFinal), r[11].saldoFinal, 'bg-[#4A0404] text-white');
+
+    f.grupos.forEach((g, gi) => {
+        const total = g.total.reduce((a, b) => a + b, 0);
+        const contas = g.contas.filter(c => c.total);
+        if (!total && !contas.length) return;
+        const aberto = finFluxoAbertos.has(gi);
+        html += `<tr class="bg-slate-100/70 font-semibold cursor-pointer hover:bg-slate-100" onclick="finFluxoToggle(${gi})">
+            <td class="px-3 py-2"><i class="fa-solid fa-chevron-${aberto ? 'down' : 'right'} text-[10px] mr-2 text-slate-400"></i>${sanitize(g.grupo)}</td>`
+            + g.total.map(v => `<td class="${th}">${money(v)}</td>`).join('') + `<td class="${th}">${money(total)}</td></tr>`;
+        if (!aberto) return;
+        contas.forEach(c => {
+            html += `<tr class="hover:bg-slate-50/60"><td class="px-3 py-1.5 pl-9 text-xs">${sanitize(c.conta)}</td>`
+                + c.valores.map((v, m) => `<td class="${th} text-xs">${v
+                    ? `<a href="#" class="text-slate-700 hover:text-[#960018] hover:underline" onclick="finFluxoAbrirConta('${c.codigo}',${m + 1});return false;">${finBRL(v)}</a>`
+                    : '<span class="text-slate-300">—</span>'}</td>`).join('')
+                + `<td class="${th} text-xs font-semibold">${finBRL(c.total)}</td></tr>`;
+        });
+    });
+    body.innerHTML = html;
+}
+
+function finFluxoToggle(gi) {
+    if (finFluxoAbertos.has(gi)) finFluxoAbertos.delete(gi); else finFluxoAbertos.add(gi);
+    finRenderFluxo();
+}
+
+function finFluxoToggleTudo() {
+    const n = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial).grupos.length;
+    if (finFluxoAbertos.size) finFluxoAbertos.clear();
+    else for (let i = 0; i < n; i++) finFluxoAbertos.add(i);
+    finRenderFluxo();
+}
+
+// Clique numa celula: abre a lista ja filtrada por conta e mes.
+function finFluxoAbrirConta(codigo, mes) {
+    document.getElementById('fin-filtro-conta').value = codigo;
+    document.getElementById('fin-filtro-mes').value = String(mes);
+    const btn = [].find.call(document.querySelectorAll('.fin-nav'), b => (b.getAttribute('onclick') || '').indexOf("'fin-lancamentos'") > -1);
+    switchTab('fin-lancamentos', btn);
+}
+
+function finExportFluxo() {
+    const f = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial);
+    const linha = (rot, v) => [rot].concat(v, v.reduce((a, b) => a + b, 0));
+    const r = f.resumo;
+    const aoa = [['Conta'].concat(FIN_MESES, 'Ano'),
+        ['Saldo inicial'].concat(r.map(x => x.saldoInicial), r[0].saldoInicial),
+        linha('Total de entradas', r.map(x => x.entradas)),
+        linha('Total de saídas', r.map(x => x.saidas)),
+        linha('Resultado do mês', r.map(x => x.resultado)),
+        ['Saldo final'].concat(r.map(x => x.saldoFinal), r[11].saldoFinal)];
+    f.grupos.forEach(g => {
+        aoa.push(linha(g.grupo.toUpperCase(), g.total));
+        g.contas.filter(c => c.total).forEach(c => aoa.push(linha(c.conta, c.valores)));
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Fluxo ' + FIN.ano);
+    XLSX.writeFile(wb, `Fluxo_de_Caixa_${FIN.ano}.xlsx`);
 }
 
 // ---------- IMPORTAÇÃO / CONCILIAÇÃO ----------
@@ -2066,7 +2186,7 @@ function finOnTab(id) {
     }
     finPopulaAnos();
     if (!FIN.parceiros.length && !FIN.lancamentos.length) finLoadAno();
-    else { finRenderPainel(); finRenderParceiros(); finPopulaSelects(); finRenderLancamentos(); }
+    else { finRenderPainel(); finRenderParceiros(); finPopulaSelects(); finRenderLancamentos(); finRenderFluxo(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2121,7 +2241,7 @@ switchTab = function(id, el) {
         if (alvo) alvo.classList.remove('hidden');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         if (el) el.classList.add('active');
-        const titulos = {'fin-painel':'Painel de Parcerias','fin-lancamentos':'Lançamentos','fin-parceiros':'Parceiros','fin-import':'Importar planilha'};
+        const titulos = {'fin-painel':'Painel de Parcerias','fin-fluxo':'Fluxo de Caixa','fin-lancamentos':'Lançamentos','fin-parceiros':'Parceiros','fin-import':'Importar planilha'};
         const h = document.getElementById('header-title');
         if (h) h.innerText = titulos[id] || 'Financeiro';
         const al = document.getElementById('deadline-alerts');

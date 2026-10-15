@@ -2,7 +2,7 @@
 
 - `index.html` (~2100 linhas): marcacao, Tailwind config e scripts inline (modulo financeiro `FIN`, protecoes de dominio/iframe, log de acesso local).
 - `app.js` (~515 linhas compactadas): estado, Firebase Auth, importacao XLSX, filtros, graficos, prazos, e-mail. Define `firebaseConfig` e `switchTab`, usados pelo script inline financeiro.
-- `fin-core.js`: regras puras do financeiro (plano de contas real, tipo pela conta, sinal e saldo corrente), testadas em Node. Para mudar uma conta, edite `FIN_PLANO`.
+- `fin-core.js`: regras puras do financeiro (plano de contas real, tipo pela conta, sinal, saldo corrente e Fluxo de Caixa Mensal), testadas em Node. Para mudar uma conta, edite `FIN_PLANO`.
 - `style.css`: estilos complementares ao Tailwind.
 - Dados: planilha importada em `localStorage` (`juridico_data_v10`); financeiro em Firestore.
 - Deploy: Netlify (`publish="."`), cache `no-cache` em `_headers`.
@@ -16,3 +16,6 @@
 ## Financeiro: saldo inicial
 Guardado em `configFinanceiro/{ano}` no Firestore. Se as regras ainda não liberam essa coleção, a tela avisa e usa o valor do navegador.
 Saldo corrente: Entrada/Recebimento Repasse somam; Saída/Repasse/Despesa Conta PF subtraem; Espécie não move o saldo.
+
+## Financeiro: Fluxo de Caixa
+Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta pelo código (texto antes de " - "); contas fora do plano aparecem em "Fora do plano". Totais de entradas/saídas e saldo seguem o sinal do tipo (Espécie não entra no total). Clique numa célula abre Lançamentos filtrado por conta e mês.

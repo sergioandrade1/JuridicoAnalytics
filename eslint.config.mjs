@@ -33,7 +33,13 @@ export default [
     // page.evaluate() roda no navegador, entao enxerga estes globais.
     files: ["scripts/fin-ui.mjs"],
     languageOptions: {
-      globals: { ...globals.node, ...globals.browser, finOnTab: "readonly" },
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        finOnTab: "readonly",
+        finRenderFluxo: "readonly",
+        finFluxoToggleTudo: "readonly",
+      },
     },
   },
 ];

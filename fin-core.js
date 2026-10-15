@@ -55,6 +55,59 @@ function finCalcSaldos(lancamentos, saldoInicial) {
     return { ordem: ordem, saldos: saldos, entradas: entradas, saidas: saidas, saldoFinal: saldo };
 }
 
+// Codigo da conta = texto antes do " - " ("2.01.008 - Energia Elétrica" -> "2.01.008").
+// Casar pelo codigo tolera espaco a mais ou acento trocado em lancamentos importados.
+function finCodigoConta(conta) {
+    return String(conta || '').split(' - ')[0].trim();
+}
+
+// Fluxo de Caixa Mensal (aba "Fluxo de Caixa Mensal" da planilha): uma linha por
+// conta do plano, uma coluna por mes. Valores das celulas = soma dos valores
+// absolutos da conta no mes. Entradas/saidas/saldo seguem o sinal do tipo, a
+// mesma regra do saldo corrente da lista de lancamentos.
+// Contas fora do plano vao para o grupo "Fora do plano", para nada sumir.
+function finFluxoMensal(lancamentos, saldoInicial) {
+    const zeros = () => new Array(12).fill(0);
+    const grupos = FIN_PLANO.map(g => ({
+        grupo: g.grupo, tipo: g.tipo, total: zeros(),
+        contas: g.contas.map(c => ({ conta: c, codigo: finCodigoConta(c), valores: zeros(), total: 0 }))
+    }));
+    const porCodigo = {};
+    grupos.forEach(g => g.contas.forEach(c => { porCodigo[c.codigo] = { g: g, c: c }; }));
+    const fora = { grupo: 'Fora do plano', tipo: '', total: zeros(), contas: [] };
+    const resumo = Array.from({ length: 12 }, () => ({ entradas: 0, saidas: 0, resultado: 0, saldoInicial: 0, saldoFinal: 0 }));
+
+    (lancamentos || []).forEach(l => {
+        const m = Number(l.mes) - 1;
+        if (!(m >= 0 && m < 12)) return;
+        const valor = Math.abs(Number(l.valor) || 0);
+        const sinal = finSinal(l.tipo);
+        if (sinal > 0) resumo[m].entradas += valor; else if (sinal < 0) resumo[m].saidas += valor;
+
+        const codigo = finCodigoConta(l.categoria);
+        let alvo = porCodigo[codigo];
+        if (!alvo) {
+            const nome = String(l.categoria || '').trim() || '(sem conta)';
+            let c = fora.contas.find(x => x.conta === nome);
+            if (!c) { c = { conta: nome, codigo: codigo, valores: zeros(), total: 0 }; fora.contas.push(c); }
+            alvo = { g: fora, c: c };
+        }
+        alvo.c.valores[m] += valor;
+        alvo.g.total[m] += valor;
+    });
+
+    let saldo = Number(saldoInicial) || 0;
+    resumo.forEach(r => {
+        r.saldoInicial = saldo;
+        r.resultado = Math.round((r.entradas - r.saidas) * 100) / 100;
+        saldo = Math.round((saldo + r.resultado) * 100) / 100;
+        r.saldoFinal = saldo;
+    });
+    if (fora.contas.length) grupos.push(fora);
+    grupos.forEach(g => g.contas.forEach(c => { c.total = c.valores.reduce((a, b) => a + b, 0); }));
+    return { grupos: grupos, resumo: resumo };
+}
+
 if (typeof module !== 'undefined') {
-    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos };
+    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finFluxoMensal };
 }

@@ -54,3 +54,49 @@ test("ordena por data sem perder a ordem do mesmo dia", () => {
   );
   assert.equal(r.saldos.x, 90);
 });
+
+test("fluxo mensal: saldo encadeia os meses e agrupa por codigo da conta", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const l = [
+    {
+      mes: 1,
+      tipo: "Entrada",
+      valor: 1000,
+      categoria: "1.01.04 - Honorários - Mensal",
+    },
+    {
+      mes: 1,
+      tipo: "Saída",
+      valor: 200,
+      categoria: "2.01.008 - Energia Elétrica",
+    },
+    // texto diferente do plano, mesmo codigo: deve cair na mesma linha
+    { mes: 2, tipo: "Saída", valor: 50, categoria: "2.01.008 -  Energia" },
+    { mes: 2, tipo: "Saída", valor: 10, categoria: "9.99.999 - Conta antiga" },
+  ];
+  const r = finFluxoMensal(l, 100);
+  assert.equal(r.resumo[0].saldoInicial, 100);
+  assert.equal(r.resumo[0].resultado, 800);
+  assert.equal(r.resumo[0].saldoFinal, 900);
+  assert.equal(r.resumo[1].saldoInicial, 900);
+  assert.equal(r.resumo[1].saidas, 60);
+  assert.equal(r.resumo[11].saldoFinal, 840);
+  const energia = r.grupos
+    .flatMap((g) => g.contas)
+    .find((c) => c.codigo === "2.01.008");
+  assert.deepEqual(
+    [energia.valores[0], energia.valores[1], energia.total],
+    [200, 50, 250],
+  );
+  const fora = r.grupos.find((g) => g.grupo === "Fora do plano");
+  assert.equal(fora.total[1], 10);
+});
+
+test("fluxo mensal ignora mes invalido sem quebrar", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const r = finFluxoMensal(
+    [{ mes: 13, tipo: "Entrada", valor: 5, categoria: "1.01.04 - X" }],
+    0,
+  );
+  assert.equal(r.resumo[11].saldoFinal, 0);
+});

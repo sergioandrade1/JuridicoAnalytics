@@ -157,6 +157,23 @@ try {
     ),
     0.33,
   );
+  // 4) Fluxo de Caixa Mensal: totais, grupo aberto e drill-down por celula
+  await page.evaluate(() => finRenderFluxo());
+  const fluxo = await page.locator("#fin-fluxo-body").innerText();
+  assert.match(fluxo, /Saldo inicial/);
+  assert.match(fluxo, /Saldo final[\s\S]*10\.997,21/);
+  await page.evaluate(() => finFluxoToggleTudo());
+  const aberto = await page.locator("#fin-fluxo-body").innerText();
+  assert.match(aberto, /1\.01\.04 - Honorários - Mensal/);
+  assert.match(aberto, /2\.05\.003 - Tarifas Bancárias/);
+  await page.locator('#fin-fluxo-body a:has-text("11.000,00")').first().click();
+  await page.waitForTimeout(200);
+  assert.equal(await page.inputValue("#fin-filtro-conta"), "1.01.04");
+  assert.equal(await page.inputValue("#fin-filtro-mes"), "1");
+  const filtradas = await page.locator("#fin-lanc-body tr").count();
+  assert.equal(filtradas, 1);
+  console.log("OK: fluxo de caixa e drill-down");
+
   await page.screenshot({ path: process.env.SHOT ?? "/tmp/fin-lanc.png" });
   const relevantes = erros.filter(
     (e) => !/tailwind|Chart|XLSX|emailjs/.test(e),
