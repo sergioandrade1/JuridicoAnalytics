@@ -749,6 +749,14 @@
                   <div id="fin-import-resumo" class="hidden text-sm text-slate-600"></div>
                   <div id="fin-import-conciliacao" class="hidden space-y-3"></div>
                   <div id="fin-import-status" class="hidden text-xs rounded-lg p-3 border"></div>
+                  <div class="border-t border-slate-100 pt-4 space-y-3" id="fin-gar-import">
+                      <h4 class="font-bold text-[#4A0404] text-sm">Importar Conta Garantida</h4>
+                      <p class="text-[11px] text-slate-500">Lê a aba "Controle Conta Garantida" (saldo devedor inicial e saldo de cada dia). Pode rodar de novo sem duplicar: cada data vira um registro só.</p>
+                      <input type="file" id="fin-gar-file" accept=".xlsx, .xls" class="text-xs">
+                      <div id="fin-gar-import-resumo" class="hidden text-xs text-slate-600"></div>
+                      <button id="fin-gar-import-btn" onclick="finGarImportGravar()" class="hidden py-2 px-4 bg-[#960018] hover:bg-[#7d0014] text-white text-xs font-bold rounded-lg"><i class="fa-solid fa-database mr-1"></i>Gravar Conta Garantida</button>
+                      <div id="fin-gar-import-status" class="hidden"></div>
+                  </div>
               </div>
           </div>
       </div>
@@ -1857,6 +1865,66 @@ function finRenderGarantia() {
     }).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum registro em ${FIN.ano}.</td></tr>`;
 }
 
+// Importacao da aba "Controle Conta Garantida". Idempotente: o id do documento
+// e a data, entao rodar duas vezes sobrescreve em vez de duplicar.
+function finGarImportLer(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+            const nome = wb.SheetNames.find(n => finNormAscii(n).indexOf('conta garantida') > -1 && finNormAscii(n).indexOf('controle') > -1);
+            if (!nome) { finMsg('fin-gar-import-status', 'Aba "Controle Conta Garantida" não encontrada. Abas: ' + wb.SheetNames.join(' · '), 'erro'); return; }
+            const r = finGarantiaParse(XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true }));
+            if (!r.registros.length) { finMsg('fin-gar-import-status', 'Nenhum registro (Data + Saldo do Dia) encontrado na aba.', 'erro'); return; }
+            FIN.garImport = r;
+            const anos = [...new Set(r.registros.map(x => x.ano))].join(', ');
+            const box = document.getElementById('fin-gar-import-resumo');
+            box.innerHTML = `<b>${r.registros.length}</b> registros (${finDataBR(r.registros[0].data)} a ${finDataBR(r.registros[r.registros.length - 1].data)}), ano(s) ${anos}. `
+                + `Devedor inicial: <b>${r.inicial == null ? 'não encontrado' : finBRL(r.inicial)}</b>. Último saldo: <b>${finBRL(r.registros[r.registros.length - 1].saldo)}</b>.`
+                + (r.ignoradas.length ? ` ${r.ignoradas.length} linha(s) ignoradas.` : '');
+            box.classList.remove('hidden');
+            document.getElementById('fin-gar-import-btn').classList.remove('hidden');
+            finMsg('fin-gar-import-status', '');
+        } catch (err) {
+            finMsg('fin-gar-import-status', 'Erro ao ler o arquivo: ' + err.message, 'erro');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+async function finGarImportGravar() {
+    if (!finRequire() || !FIN.garImport) return;
+    const { registros, inicial } = FIN.garImport;
+    finMsg('fin-gar-import-status', 'Gravando…', 'alerta');
+    try {
+        for (let i = 0; i < registros.length; i += 400) {
+            const batch = FIN.db.batch();
+            registros.slice(i, i + 400).forEach(r => {
+                batch.set(FIN.db.collection('contaGarantida').doc(r.data), {
+                    data: r.data, ano: r.ano, mes: r.mes, saldo: r.saldo, obs: r.obs,
+                    origem: 'import',
+                    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                    atualizadoPor: FIN.user ? FIN.user.email : null
+                }, { merge: true });
+            });
+            await batch.commit();
+        }
+        if (inicial != null) {
+            await FIN.db.collection('configFinanceiro').doc(String(registros[0].ano)).set({
+                garantiaInicial: inicial,
+                atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                atualizadoPor: FIN.user ? FIN.user.email : null
+            }, { merge: true });
+        }
+        finMsg('fin-gar-import-status', `Pronto. ${registros.length} registros gravados${inicial != null ? ' e devedor inicial salvo' : ''}.`, 'ok');
+        FIN.garImport = null;
+        document.getElementById('fin-gar-import-btn').classList.add('hidden');
+        await finLoadAno();
+    } catch (e) {
+        finMsg('fin-gar-import-status', 'Erro ao gravar (regras do Firestore liberam contaGarantida e configFinanceiro?): ' + e.message, 'erro');
+    }
+}
+
 // ---------- FLUXO DE CAIXA MENSAL ----------
 const finFluxoAbertos = new Set();
 
@@ -2367,6 +2435,8 @@ function finOnTab(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
     finInitFirebase();
+    const garFile = document.getElementById('fin-gar-file');
+    if (garFile) garFile.addEventListener('change', e => { if (e.target.files[0]) finGarImportLer(e.target.files[0]); });
     const zone = document.getElementById('fin-import-zone');
     if (zone) {
         const input = document.getElementById('fin-import-file');

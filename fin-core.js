@@ -140,6 +140,49 @@ function finGarantiaResumo(registros, inicial) {
     return { ordem: ordem, variacoes: variacoes, meses: meses, atual: ordem.length ? Number(ordem[ordem.length - 1].saldo) : ini };
 }
 
+// Le a aba "Controle Conta Garantida" ja convertida em linhas (matriz). Acha o
+// devedor inicial ("Saldo Devedor Inicial", valor na coluna seguinte) e os
+// registros abaixo do cabecalho ("Data" ... "Saldo do Dia"). Datas podem ser
+// Date ou texto dd/mm/aaaa (as primeiras linhas da planilha real sao texto).
+// Datas repetidas: vale a ultima, como o LOOKUP da planilha.
+function finGarantiaParse(rows) {
+    const norm = v => String(v == null ? '' : v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const toDate = v => {
+        if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+        const t = String(v == null ? '' : v).trim();
+        let m = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+        if (m) return new Date(Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+    };
+    const num = v => {
+        if (typeof v === 'number') return v;
+        const n = parseFloat(String(v == null ? '' : v).replace(/[R$\s.]/g, '').replace(',', '.'));
+        return isFinite(n) ? n : null;
+    };
+    let inicial = null, cabecalho = -1;
+    (rows || []).forEach((r, i) => {
+        const a = norm(r && r[0]);
+        if (a.indexOf('saldo devedor inicial') === 0 && inicial == null) inicial = num(r[1]);
+        if (cabecalho < 0 && a === 'data' && (r || []).some(c => norm(c).indexOf('saldo do dia') === 0)) cabecalho = i;
+    });
+    const porData = {}, ignoradas = [];
+    if (cabecalho >= 0) {
+        const colSaldo = rows[cabecalho].findIndex(c => norm(c).indexOf('saldo do dia') === 0);
+        const colObs = rows[cabecalho].findIndex(c => norm(c).indexOf('observa') === 0);
+        for (let i = cabecalho + 1; i < rows.length; i++) {
+            const r = rows[i] || [];
+            const d = toDate(r[0]), saldo = num(r[colSaldo]);
+            if (!d || saldo == null) { if (r[0] != null && r[0] !== '') ignoradas.push(i + 1); continue; }
+            const pad = n => String(n).padStart(2, '0');
+            const data = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            porData[data] = { data: data, ano: d.getFullYear(), mes: d.getMonth() + 1, saldo: saldo, obs: colObs >= 0 ? String(r[colObs] == null ? '' : r[colObs]).trim() : '' };
+        }
+    }
+    const registros = Object.keys(porData).sort().map(k => porData[k]);
+    return { inicial: inicial, registros: registros, ignoradas: ignoradas, achouCabecalho: cabecalho >= 0 };
+}
+
 if (typeof module !== 'undefined') {
-    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finTipoCasaConta, finFluxoMensal, finGarantiaResumo };
+    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finTipoCasaConta, finFluxoMensal, finGarantiaResumo, finGarantiaParse };
 }

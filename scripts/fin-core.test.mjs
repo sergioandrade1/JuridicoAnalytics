@@ -196,3 +196,36 @@ test("saldo corrente ignora Repasse, Despesa Conta PF e Recebimento Repasse", ()
   ];
   assert.equal(finCalcSaldos(l, 0).saldoFinal, 90);
 });
+
+test("importa a aba Controle Conta Garantida (datas em texto e Date, ultima vence)", () => {
+  const { finGarantiaParse } = createRequire(import.meta.url)("../fin-core.js");
+  const rows = [
+    ["CONTROLE CONTA GARANTIDA - 2026"],
+    [],
+    ["Saldo Devedor Inicial (informado)", 177329.82],
+    ["Saldo Devedor Atual", 1],
+    [],
+    ["Data", "Mês", "Saldo do Dia (R$)", "Variação", "Observação"],
+    ["02/01/2026", "JANEIRO", 178704.82, 1375, ""],
+    [new Date(2026, 3, 10), "ABRIL", 324279.25, 0, "fim"],
+    [new Date(2026, 3, 10), "ABRIL", 330000, 0, "corrigido"],
+    ["texto solto", "", "", "", ""],
+    [null, null, null],
+  ];
+  const r = finGarantiaParse(rows);
+  assert.equal(r.inicial, 177329.82);
+  assert.deepEqual(
+    r.registros.map((x) => [x.data, x.mes, x.saldo]),
+    [
+      ["2026-01-02", 1, 178704.82],
+      ["2026-04-10", 4, 330000],
+    ],
+  );
+  assert.equal(r.registros[1].obs, "corrigido");
+  assert.deepEqual(r.ignoradas, [10]);
+});
+
+test("aba sem cabecalho de conta garantida nao gera registros", () => {
+  const { finGarantiaParse } = createRequire(import.meta.url)("../fin-core.js");
+  assert.equal(finGarantiaParse([["x"]]).achouCabecalho, false);
+});

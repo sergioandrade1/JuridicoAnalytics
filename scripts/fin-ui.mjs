@@ -35,7 +35,16 @@ const FAKE_FIREBASE = `
   });
   const user = { email: 'teste@local' };
   const auth = { currentUser: user, onAuthStateChanged: (cb) => cb(user), signOut: async () => {} };
-  const db = { collection, batch: () => ({ set() {}, commit: async () => {} }) };
+  const db = {
+    collection,
+    batch: () => {
+      const ops = [];
+      return {
+        set: (ref, d, o) => ops.push([ref, d, o]),
+        commit: async () => { for (const [r, d, o] of ops) await r.set(d, o); },
+      };
+    },
+  };
   window.__store = store;
   window.firebase = {
     apps: [], initializeApp() { this.apps.push(1); },
@@ -259,6 +268,37 @@ try {
     await page.evaluate(() => Object.keys(window.__store.contaGarantida)),
     ["2026-01-02"],
   );
+
+  // 9) Importar Conta Garantida: grava com id = data e rodar de novo nao duplica
+  const regs = [
+    { data: "2026-01-02", ano: 2026, mes: 1, saldo: 178704.82, obs: "" },
+    { data: "2026-04-10", ano: 2026, mes: 4, saldo: 324279.25, obs: "" },
+  ];
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate((r) => {
+      FIN.garImport = { registros: r, inicial: 177329.82, ignoradas: [] };
+      return finGarImportGravar();
+    }, regs);
+  }
+  assert.deepEqual(
+    await page.evaluate(() =>
+      Object.keys(window.__store.contaGarantida).sort(),
+    ),
+    ["2026-01-02", "2026-04-10"],
+  );
+  assert.equal(
+    await page.evaluate(
+      () => window.__store.configFinanceiro["2026"].garantiaInicial,
+    ),
+    177329.82,
+  );
+  assert.equal(
+    await page.evaluate(
+      () => window.__store.configFinanceiro["2026"].saldoInicial,
+    ),
+    0.33,
+  );
+  console.log("OK: importacao da conta garantida");
 
   await page.screenshot({ path: process.env.SHOT ?? "/tmp/fin-lanc.png" });
   const relevantes = erros.filter(

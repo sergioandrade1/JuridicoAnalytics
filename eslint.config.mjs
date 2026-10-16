@@ -42,6 +42,8 @@ export default [
         finLoadAno: "readonly",
         finEditLancamento: "readonly",
         finLimparFiltros: "readonly",
+        finGarImportGravar: "readonly",
+        FIN: "readonly",
       },
     },
   },
