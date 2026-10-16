@@ -43,6 +43,7 @@ export default [
         finEditLancamento: "readonly",
         finLimparFiltros: "readonly",
         finGarImportGravar: "readonly",
+        finGarImportPreparar: "readonly",
         FIN: "readonly",
       },
     },
