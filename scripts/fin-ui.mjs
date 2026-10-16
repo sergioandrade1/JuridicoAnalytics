@@ -269,6 +269,34 @@ try {
     ["2026-01-02"],
   );
 
+  // 8b) Mesmo arquivo da importacao: a previa da Conta Garantida aparece sozinha
+  const resultado = await page.evaluate(() => {
+    window.XLSX = { utils: { sheet_to_json: (ws) => ws.rows } };
+    const linhas = [
+      ["Saldo Devedor Inicial (informado)", 100],
+      ["Data", "Mês", "Saldo do Dia (R$)"],
+      ["02/01/2026", "JANEIRO", 150],
+      ["03/01/2026", "JANEIRO", 120],
+    ];
+    const card = () =>
+      !document.getElementById("fin-gar-import").classList.contains("hidden");
+    finGarImportPreparar({
+      SheetNames: ["Lançamentos Janeiro", "Controle Conta Garantida"],
+      Sheets: { "Controle Conta Garantida": { rows: linhas } },
+    });
+    const com = {
+      visivel: card(),
+      texto: document.getElementById("fin-gar-import-resumo").innerText,
+      pronto: !!FIN.garImport,
+    };
+    finGarImportPreparar({ SheetNames: ["Lançamentos Janeiro"], Sheets: {} });
+    return { com, semAba: { visivel: card(), pronto: !!FIN.garImport } };
+  });
+  assert.ok(resultado.com.visivel && resultado.com.pronto);
+  assert.match(resultado.com.texto, /2 registros/);
+  assert.deepEqual(resultado.semAba, { visivel: false, pronto: false });
+  console.log("OK: Conta Garantida pelo mesmo arquivo");
+
   // 9) Importar Conta Garantida: grava com id = data e rodar de novo nao duplica
   const regs = [
     { data: "2026-01-02", ano: 2026, mes: 1, saldo: 178704.82, obs: "" },
