@@ -9,3 +9,5 @@
   Cache-Control: no-cache, must-revalidate
 /style.css
   Cache-Control: no-cache, must-revalidate
+/fin-core.js
+  Cache-Control: no-cache, must-revalidate

@@ -320,6 +320,8 @@
       <div id="grupo-nav-financeiro" class="hidden">
         <p class="sidebar-section-label text-[10px] font-bold uppercase tracking-widest px-3 mb-2 mt-1" style="color:rgba(212,175,55,.7)">Financeiro</p>
         <button onclick="switchTab('fin-painel',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-handshake w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Painel de Parcerias</span></button>
+        <button onclick="switchTab('fin-fluxo',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-table w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Fluxo de Caixa</span></button>
+        <button onclick="switchTab('fin-garantia',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-scale-balanced w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Conta Garantida</span></button>
         <button onclick="switchTab('fin-lancamentos',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-money-bill-transfer w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Lançamentos</span></button>
         <button onclick="switchTab('fin-parceiros',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-address-book w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Parceiros</span></button>
         <button onclick="switchTab('fin-import',this)" class="nav-item fin-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm"><i class="fa-solid fa-file-import w-5 text-center flex-shrink-0"></i><span class="sidebar-label">Importar planilha</span></button>
@@ -540,14 +542,82 @@
           </div>
       </div>
 
+      <div id="tab-fin-fluxo" class="tab-content hidden fade-in space-y-6">
+          <div class="fin-scope bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <div class="p-4 border-b border-slate-100 bg-[#960018]/5 flex flex-wrap justify-between items-center gap-3">
+                  <div>
+                      <h3 class="font-bold text-[#4A0404] text-base">Fluxo de Caixa Mensal</h3>
+                      <p class="text-[11px] text-slate-500 mt-0.5">Conta × mês, calculado dos lançamentos. Clique num grupo para abrir e num valor para ver os lançamentos.</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                      <select id="fin-fluxo-ano" onchange="finSetAno(this.value)" class="fin-input-sm"></select>
+                      <button onclick="finFluxoToggleTudo()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Abrir/fechar grupos</button>
+                      <button onclick="finExportFluxo()" class="py-1.5 px-3 text-xs font-semibold rounded-lg border border-[#960018]/20 text-[#960018] hover:bg-[#960018]/5 transition-colors"><i class="fa-solid fa-file-excel mr-1"></i>Exportar</button>
+                  </div>
+              </div>
+              <div id="fin-fluxo-erro" class="hidden m-3"></div>
+              <div class="overflow-x-auto custom-scrollbar max-h-[75vh]">
+                  <table class="text-sm text-left text-slate-600 w-full">
+                      <thead id="fin-fluxo-head" class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0 z-10"></thead>
+                      <tbody id="fin-fluxo-body" class="divide-y divide-slate-100"></tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <div id="tab-fin-garantia" class="tab-content hidden fade-in space-y-6">
+          <div class="fin-scope grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
+                  <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
+                      <h3 class="font-bold text-[#4A0404] text-base">Saldo do dia</h3>
+                      <p class="text-[11px] text-slate-500 mt-0.5">Informe o saldo devedor. Enter salva; a variação e o mês saem sozinhos.</p>
+                  </div>
+                  <div class="p-4 space-y-3" id="fin-gar-form">
+                      <div>
+                          <label class="fin-label">Saldo devedor inicial do ano (R$)</label>
+                          <input type="number" step="0.01" id="fin-gar-inicial" onchange="finSalvarGarantiaInicial()" class="fin-input" placeholder="0,00">
+                      </div>
+                      <div class="grid grid-cols-2 gap-3">
+                          <div><label class="fin-label">Data</label><input type="date" id="fin-gar-data" class="fin-input"></div>
+                          <div><label class="fin-label">Saldo do dia (R$)</label><input type="number" step="0.01" id="fin-gar-saldo" class="fin-input" placeholder="0,00"></div>
+                      </div>
+                      <div><label class="fin-label">Observação</label><input type="text" id="fin-gar-obs" class="fin-input"></div>
+                      <div id="fin-gar-erro" class="hidden"></div>
+                      <button onclick="finSalvarGarantia()" class="w-full py-2.5 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors"><i class="fa-solid fa-floppy-disk mr-2"></i>Salvar</button>
+                  </div>
+              </div>
+              <div class="lg:col-span-2 space-y-6">
+                  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                      <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                          <h3 class="font-bold text-[#4A0404] text-base">Resumo mensal</h3>
+                          <div class="text-right"><div class="text-[10px] uppercase text-slate-400 font-bold">Saldo devedor atual</div><div id="fin-gar-atual" class="font-bold text-[#960018]">—</div></div>
+                      </div>
+                      <table class="w-full text-sm text-left text-slate-600">
+                          <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"><tr><th class="px-4 py-2">Mês</th><th class="px-4 py-2 text-right">Saldo final</th><th class="px-4 py-2 text-right">Redução no mês</th></tr></thead>
+                          <tbody id="fin-gar-meses" class="divide-y divide-slate-100"></tbody>
+                      </table>
+                  </div>
+                  <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                      <div class="p-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-bold text-[#4A0404] text-base">Registros</h3></div>
+                      <div class="overflow-x-auto custom-scrollbar max-h-[50vh]">
+                          <table class="w-full text-sm text-left text-slate-600">
+                              <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0"><tr><th class="px-4 py-2">Data</th><th class="px-4 py-2 text-right">Saldo do dia</th><th class="px-4 py-2 text-right">Variação</th><th class="px-4 py-2">Observação</th><th class="px-4 py-2 w-12"></th></tr></thead>
+                              <tbody id="fin-gar-body" class="divide-y divide-slate-100"></tbody>
+                          </table>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
       <div id="tab-fin-lancamentos" class="tab-content hidden fade-in space-y-6">
           <div class="fin-scope grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden self-start">
                   <div class="p-4 border-b border-slate-100 bg-[#960018]/5">
                       <h3 class="font-bold text-[#4A0404] text-base" id="fin-lanc-form-title">Novo Lançamento</h3>
-                      <p class="text-[11px] text-slate-500 mt-0.5">Parceiro é escolhido na lista — nunca digitado.</p>
+                      <p class="text-[11px] text-slate-500 mt-0.5">Enter salva. O tipo vem da conta e a data é mantida para o próximo.</p>
                   </div>
-                  <div class="p-4 space-y-3">
+                  <div class="p-4 space-y-3" id="fin-lanc-form">
                       <input type="hidden" id="fin-lanc-id">
                       <div class="grid grid-cols-2 gap-3">
                           <div>
@@ -560,20 +630,20 @@
                           </div>
                       </div>
                       <div>
+                          <label class="fin-label">Movimento</label>
+                          <input type="text" id="fin-lanc-descricao" class="fin-input" placeholder="Ex.: Conta de luz Neoenergia">
+                      </div>
+                      <div>
+                          <label class="fin-label">Conta (plano de contas)</label>
+                          <select id="fin-lanc-categoria" onchange="finAoMudarCategoria()" class="fin-input"></select>
+                      </div>
+                      <div>
                           <label class="fin-label">Tipo</label>
                           <select id="fin-lanc-tipo" onchange="finPreviewLimite()" class="fin-input"></select>
                       </div>
-                      <div>
-                          <label class="fin-label">Categoria</label>
-                          <select id="fin-lanc-categoria" onchange="finPreviewLimite()" class="fin-input"></select>
-                      </div>
-                      <div>
+                      <div id="fin-lanc-parceiro-box" class="hidden">
                           <label class="fin-label">Parceiro</label>
                           <select id="fin-lanc-parceiro" onchange="finPreviewLimite()" class="fin-input"></select>
-                      </div>
-                      <div>
-                          <label class="fin-label">Descrição</label>
-                          <input type="text" id="fin-lanc-descricao" class="fin-input" placeholder="Histórico do movimento">
                       </div>
                       <div id="fin-lanc-alerta" class="hidden text-xs rounded-lg p-3 border"></div>
                       <div id="fin-lanc-erro" class="hidden text-xs rounded-lg p-3 border border-red-100 bg-red-50 text-red-600"></div>
@@ -587,19 +657,26 @@
               <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                   <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center gap-2">
                       <h3 class="font-bold text-[#4A0404] text-base mr-auto">Lançamentos</h3>
+                      <label class="fin-label !mb-0">Saldo inicial do ano</label>
+                      <input type="number" step="0.01" id="fin-saldo-inicial" onchange="finSalvarSaldoInicial()" class="fin-input-sm w-32 text-right" placeholder="0,00">
                       <select id="fin-filtro-mes" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-conta" onchange="finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
+                      <button id="fin-limpar-filtros" onclick="finLimparFiltros()" class="hidden py-1.5 px-3 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 text-amber-800">Limpar filtros ✕</button>
                   </div>
+                  <div id="fin-saldo-erro" class="hidden m-3"></div>
+                  <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
                   <div class="overflow-x-auto custom-scrollbar max-h-[70vh]">
                       <table class="w-full text-sm text-left text-slate-600">
                           <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
                               <tr>
                                   <th class="px-4 py-3">Data</th>
                                   <th class="px-4 py-3">Tipo</th>
-                                  <th class="px-4 py-3">Parceiro</th>
-                                  <th class="px-4 py-3">Categoria</th>
+                                  <th class="px-4 py-3">Movimento</th>
+                                  <th class="px-4 py-3">Conta</th>
                                   <th class="px-4 py-3 text-right">Valor</th>
+                                  <th class="px-4 py-3 text-right">Saldo</th>
                                   <th class="px-4 py-3 w-20"></th>
                               </tr>
                           </thead>
@@ -672,6 +749,14 @@
                   <div id="fin-import-resumo" class="hidden text-sm text-slate-600"></div>
                   <div id="fin-import-conciliacao" class="hidden space-y-3"></div>
                   <div id="fin-import-status" class="hidden text-xs rounded-lg p-3 border"></div>
+                  <div class="border-t border-slate-100 pt-4 space-y-3" id="fin-gar-import">
+                      <h4 class="font-bold text-[#4A0404] text-sm">Importar Conta Garantida</h4>
+                      <p class="text-[11px] text-slate-500">Lê a aba "Controle Conta Garantida" (saldo devedor inicial e saldo de cada dia). Pode rodar de novo sem duplicar: cada data vira um registro só.</p>
+                      <input type="file" id="fin-gar-file" accept=".xlsx, .xls" class="text-xs">
+                      <div id="fin-gar-import-resumo" class="hidden text-xs text-slate-600"></div>
+                      <button id="fin-gar-import-btn" onclick="finGarImportGravar()" class="hidden py-2 px-4 bg-[#960018] hover:bg-[#7d0014] text-white text-xs font-bold rounded-lg"><i class="fa-solid fa-database mr-1"></i>Gravar Conta Garantida</button>
+                      <div id="fin-gar-import-status" class="hidden"></div>
+                  </div>
               </div>
           </div>
       </div>
@@ -880,6 +965,7 @@
 <div id="toast-container"></div>
 
 <script src="app.js"></script>
+<script src="fin-core.js"></script>
 
 <script>
 /* ==================================================================
@@ -897,18 +983,8 @@ const FIN_TIPOS = ["Entrada","Saída","Repasse","Recebimento Repasse","Despesa C
 // Tipos que caracterizam distribuição ao parceiro (regra de perna única:
 // "Recebimento Repasse" e tipo vazio ficam de fora para não contar duas vezes).
 const FIN_TIPOS_DISTRIB = ["Repasse","Saída","Despesa Conta PF"];
-const FIN_CATEGORIAS = [
-    "1.01.001 - Honorários Contratuais",
-    "1.01.002 - Honorários de Êxito",
-    "1.02.001 - Outras Receitas",
-    "2.01.001 - Folha e Pró-labore",
-    "2.01.002 - Aluguel e Condomínio",
-    "2.01.003 - Despesas Administrativas",
-    "2.02.001 - Parceria Jurídica",
-    "2.02.002 - Honorários Fixos",
-    "2.03.001 - Impostos e Taxas",
-    "3.01.001 - Movimentação Interna"
-];
+// Plano de contas real vem de fin-core.js (FIN_PLANO / FIN_CONTAS).
+const FIN_CATEGORIAS = FIN_CONTAS;
 // Só estas duas entram no Painel de Parcerias.
 const FIN_CATEGORIAS_PARCERIA = ["2.02.001 - Parceria Jurídica","2.02.002 - Honorários Fixos"];
 const FIN_LIMITE_PADRAO = 50000;
@@ -917,6 +993,9 @@ const FIN_MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","
 const FIN = {
     db: null, auth: null, user: null, ready: false,
     ano: new Date().getFullYear(),
+    saldoInicial: 0,    // saldo inicial do ano (configFinanceiro/{ano})
+    garantiaInicial: 0, // saldo devedor inicial da conta garantida (mesmo doc)
+    garantia: [],       // registros de contaGarantida do ano
     parceiros: [],      // todos os parceiros
     lancamentos: [],    // apenas do ano selecionado
     importBuffer: null
@@ -1066,15 +1145,58 @@ async function finLoadLancamentos(ano) {
     FIN.lancamentos.sort((a, b) => (a.mes - b.mes) || String(a.data).localeCompare(String(b.data)));
 }
 
+// Saldo inicial do ano. Se as regras do Firestore ainda nao liberam a colecao
+// configFinanceiro, o valor fica so neste navegador e o usuario e avisado.
+async function finLoadConfig() {
+    FIN.saldoInicial = 0;
+    FIN.garantiaInicial = 0;
+    try {
+        const d = await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).get();
+        if (d.exists) {
+            FIN.saldoInicial = Number(d.data().saldoInicial) || 0;
+            FIN.garantiaInicial = Number(d.data().garantiaInicial) || 0;
+        }
+        finMsg('fin-saldo-erro', '');
+        finMsg('fin-fluxo-erro', '');
+    } catch (e) {
+        const aviso = 'Sem permissão para ler o saldo inicial no Firestore (libere a coleção configFinanceiro nas regras). Saldos mostrados partem de zero.';
+        finMsg('fin-saldo-erro', aviso, 'alerta');
+        finMsg('fin-fluxo-erro', aviso, 'alerta');
+    }
+}
+
+async function finSalvarSaldoInicial() {
+    if (!finRequire()) return;
+    const v = parseFloat(document.getElementById('fin-saldo-inicial').value);
+    FIN.saldoInicial = isFinite(v) ? v : 0;
+    try {
+        await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).set({
+            saldoInicial: FIN.saldoInicial,
+            atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            atualizadoPor: FIN.user ? FIN.user.email : null
+        }, { merge: true });
+        finMsg('fin-saldo-erro', '');
+        finMsg('fin-fluxo-erro', '');
+    } catch (e) {
+        finMsg('fin-saldo-erro', 'Não salvou no Firestore (' + e.message + '). O valor vale só até recarregar a página; peça para liberar configFinanceiro nas regras.', 'erro');
+    }
+    finRenderLancamentos();
+    finRenderFluxo();
+}
+
 async function finLoadAno() {
     if (!finRequire()) return;
     try {
         await finLoadParceiros();
         await finLoadLancamentos(FIN.ano);
+        await finLoadConfig();
+        await finLoadGarantia();
         finRenderPainel();
         finRenderParceiros();
         finPopulaSelects();
         finRenderLancamentos();
+        finRenderFluxo();
+        finRenderGarantia();
     } catch (e) {
         console.error(e);
         alert('Erro ao carregar dados do Firestore: ' + e.message);
@@ -1083,16 +1205,19 @@ async function finLoadAno() {
 
 function finSetAno(ano) {
     FIN.ano = Number(ano);
+    ['fin-painel-ano', 'fin-fluxo-ano'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ano; });
     finLoadAno();
 }
 
 function finPopulaAnos() {
-    const sel = document.getElementById('fin-painel-ano');
-    if (!sel || sel.options.length) return;
     const atual = new Date().getFullYear();
-    for (let a = atual + 1; a >= atual - 5; a--) {
-        sel.insertAdjacentHTML('beforeend', `<option value="${a}" ${a === FIN.ano ? 'selected' : ''}>${a}</option>`);
-    }
+    ['fin-painel-ano', 'fin-fluxo-ano'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel || sel.options.length) return;
+        for (let a = atual + 1; a >= atual - 5; a--) {
+            sel.insertAdjacentHTML('beforeend', `<option value="${a}" ${a === FIN.ano ? 'selected' : ''}>${a}</option>`);
+        }
+    });
 }
 
 // ---------- REGRA DO PAINEL ----------
@@ -1405,7 +1530,8 @@ function finPopulaSelects() {
     }
     const selC = document.getElementById('fin-lanc-categoria');
     if (selC && !selC.options.length) {
-        selC.innerHTML = `<option value="">— selecione —</option>` + FIN_CATEGORIAS.map(c => `<option value="${c}">${c}</option>`).join('');
+        selC.innerHTML = `<option value="">— selecione —</option>` + FIN_PLANO.map(g =>
+            `<optgroup label="${g.grupo}">` + g.contas.map(c => `<option value="${c}">${c}</option>`).join('') + `</optgroup>`).join('');
     }
     const fMes = document.getElementById('fin-filtro-mes');
     if (fMes && !fMes.options.length) {
@@ -1414,6 +1540,10 @@ function finPopulaSelects() {
     const fTipo = document.getElementById('fin-filtro-tipo');
     if (fTipo && !fTipo.options.length) {
         fTipo.innerHTML = `<option value="">Todos os tipos</option>` + FIN_TIPOS.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+    const fConta = document.getElementById('fin-filtro-conta');
+    if (fConta && !fConta.options.length) {
+        fConta.innerHTML = `<option value="">Todas as contas</option>` + FIN_CONTAS.map(c => `<option value="${finCodigoConta(c)}">${c}</option>`).join('');
     }
     const fParc = document.getElementById('fin-filtro-parceiro');
     if (fParc) {
@@ -1430,28 +1560,42 @@ function finRenderLancamentos() {
     const fMes = document.getElementById('fin-filtro-mes').value;
     const fParc = document.getElementById('fin-filtro-parceiro').value;
     const fTipo = document.getElementById('fin-filtro-tipo').value;
+    const fConta = document.getElementById('fin-filtro-conta').value;
+    const inp = document.getElementById('fin-saldo-inicial');
+    if (inp && document.activeElement !== inp) inp.value = FIN.saldoInicial || '';
 
-    const lista = FIN.lancamentos.filter(l => {
+    // Saldo corrente calculado no ano inteiro; os filtros so escondem linhas.
+    const calc = finCalcSaldos(FIN.lancamentos, FIN.saldoInicial);
+    const lista = calc.ordem.filter(l => {
         if (fMes && Number(l.mes) !== Number(fMes)) return false;
         if (fTipo && l.tipo !== fTipo) return false;
+        if (fConta && finCodigoConta(l.categoria) !== (fConta === '__sem__' ? '' : fConta)) return false;
         if (fParc === '__none__' && l.parceiroId) return false;
         if (fParc && fParc !== '__none__' && l.parceiroId !== fParc) return false;
         return true;
     });
 
+    document.getElementById('fin-limpar-filtros').classList.toggle('hidden', !(fMes || fParc || fTipo || fConta));
+    const cel = (rot, v, cor) => `<div class="bg-white py-2"><div class="text-[10px] uppercase text-slate-400 font-bold">${rot}</div><div class="font-bold ${cor}">${finBRL(v)}</div></div>`;
+    document.getElementById('fin-lanc-resumo').innerHTML =
+        cel('Entradas no ano', calc.entradas, 'text-emerald-600') + cel('Saídas no ano', calc.saidas, 'text-red-600')
+        + cel('Saldo atual', calc.saldoFinal, calc.saldoFinal < 0 ? 'text-red-600' : 'text-slate-700');
+
     if (!lista.length) {
-        body.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
         return;
     }
     body.innerHTML = lista.map(l => {
         const p = finParceiroById(l.parceiroId);
-        const conta = FIN_CATEGORIAS_PARCERIA.indexOf(l.categoria) > -1 && FIN_TIPOS_DISTRIB.indexOf(l.tipo) > -1 && l.parceiroId;
+        const sinal = finSinal(l.tipo);
+        const saldo = calc.saldos[l.id];
         return `<tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-2.5 whitespace-nowrap text-xs">${l.data || ''}</td>
+            <td class="px-4 py-2.5 whitespace-nowrap text-xs">${finDataBR(l.data)}</td>
             <td class="px-4 py-2.5 text-xs">${l.tipo || '<span class="text-red-400">(vazio)</span>'}</td>
-            <td class="px-4 py-2.5 text-xs font-medium text-slate-700">${p ? p.nome : '<span class="text-slate-300">—</span>'}</td>
-            <td class="px-4 py-2.5 text-[11px] text-slate-500">${l.categoria || ''}</td>
-            <td class="px-4 py-2.5 text-right text-xs font-semibold ${conta ? 'text-[#960018]' : 'text-slate-600'}" title="${conta ? 'Entra no Painel de Parcerias' : 'Não entra no painel'}">${finBRL(l.valor)}</td>
+            <td class="px-4 py-2.5 text-xs font-medium text-slate-700">${sanitize(l.descricao)}${p ? ` <span class="text-[10px] text-[#960018]">· ${sanitize(p.nome)}</span>` : ''}</td>
+            <td class="px-4 py-2.5 text-[11px] text-slate-500">${sanitize(l.categoria)}</td>
+            <td class="px-4 py-2.5 text-right text-xs font-semibold ${sinal > 0 ? 'text-emerald-600' : sinal < 0 ? 'text-red-600' : 'text-slate-600'}">${finBRL(l.valor)}</td>
+            <td class="px-4 py-2.5 text-right text-xs ${saldo < 0 ? 'text-red-600' : 'text-slate-500'}">${finBRL(saldo)}</td>
             <td class="px-4 py-2.5 text-right whitespace-nowrap">
                 <button onclick="finEditLancamento('${l.id}')" class="text-slate-400 hover:text-[#960018] px-1"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button onclick="finExcluirLancamento('${l.id}')" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash text-xs"></i></button>
@@ -1460,15 +1604,22 @@ function finRenderLancamentos() {
     }).join('');
 }
 
-function finResetLancamentoForm() {
+// manterData: apos salvar, a data fica para o proximo lancamento do mesmo dia.
+function finLimparFiltros() {
+    ['fin-filtro-mes', 'fin-filtro-parceiro', 'fin-filtro-tipo', 'fin-filtro-conta'].forEach(id => { document.getElementById(id).value = ''; });
+    finRenderLancamentos();
+}
+
+function finResetLancamentoForm(manterData) {
     document.getElementById('fin-lanc-id').value = '';
-    document.getElementById('fin-lanc-data').value = '';
+    if (!manterData) document.getElementById('fin-lanc-data').value = '';
     document.getElementById('fin-lanc-valor').value = '';
     document.getElementById('fin-lanc-tipo').value = '';
     document.getElementById('fin-lanc-categoria').value = '';
     document.getElementById('fin-lanc-parceiro').value = '';
     document.getElementById('fin-lanc-descricao').value = '';
     document.getElementById('fin-lanc-form-title').innerText = 'Novo Lançamento';
+    finAtualizaCamposForm();
     finMsg('fin-lanc-alerta', '');
     finMsg('fin-lanc-erro', '');
 }
@@ -1476,6 +1627,7 @@ function finResetLancamentoForm() {
 function finEditLancamento(id) {
     const l = FIN.lancamentos.find(x => x.id === id);
     if (!l) return;
+    finGarantirOpcaoCategoria(l.categoria);
     document.getElementById('fin-lanc-id').value = l.id;
     document.getElementById('fin-lanc-data').value = l.data || '';
     document.getElementById('fin-lanc-valor').value = l.valor;
@@ -1484,6 +1636,36 @@ function finEditLancamento(id) {
     document.getElementById('fin-lanc-parceiro').value = l.parceiroId || '';
     document.getElementById('fin-lanc-descricao').value = l.descricao || '';
     document.getElementById('fin-lanc-form-title').innerText = 'Editar Lançamento';
+    finAtualizaCamposForm();
+    finPreviewLimite();
+}
+
+// Lancamentos importados podem ter conta fora do plano atual; sem esta opcao o
+// select apagaria a conta ao editar.
+function finGarantirOpcaoCategoria(cat) {
+    const sel = document.getElementById('fin-lanc-categoria');
+    if (!cat || !sel || FIN_CONTAS.indexOf(cat) > -1 || [].some.call(sel.options, o => o.value === cat)) return;
+    sel.insertAdjacentHTML('beforeend', `<option value="${sanitize(cat)}">${sanitize(cat)} (fora do plano)</option>`);
+}
+
+// Parceiro so aparece quando a conta e de parceria (ou o lancamento ja tem um).
+function finAtualizaCamposForm() {
+    const cat = document.getElementById('fin-lanc-categoria').value;
+    const par = document.getElementById('fin-lanc-parceiro');
+    const mostrar = finCategoriaDeParceria(cat) || !!par.value;
+    document.getElementById('fin-lanc-parceiro-box').classList.toggle('hidden', !mostrar);
+}
+
+// Escolher a conta define o tipo: 1.* Entrada, 2.* Saída (parceria tambem Saída,
+// que entra no Painel de Parcerias).
+function finAoMudarCategoria() {
+    const cat = document.getElementById('fin-lanc-categoria').value;
+    const tipo = finTipoDaConta(cat);
+    // Ao editar, o tipo ja gravado (ex.: Recebimento Repasse) nao e sobrescrito.
+    const editando = document.getElementById('fin-lanc-id').value && document.getElementById('fin-lanc-tipo').value;
+    if (tipo && !editando) document.getElementById('fin-lanc-tipo').value = tipo;
+    if (!finCategoriaDeParceria(cat)) document.getElementById('fin-lanc-parceiro').value = '';
+    finAtualizaCamposForm();
     finPreviewLimite();
 }
 
@@ -1545,7 +1727,7 @@ async function finSalvarLancamento() {
     if (!data) { finMsg('fin-lanc-erro', 'Informe a data.', 'erro'); return; }
     if (!isFinite(valor) || valor <= 0) { finMsg('fin-lanc-erro', 'Valor deve ser um número maior que zero (o sinal é dado pelo tipo).', 'erro'); return; }
     if (FIN_TIPOS.indexOf(tipo) === -1) { finMsg('fin-lanc-erro', 'Selecione um tipo.', 'erro'); return; }
-    if (FIN_CATEGORIAS.indexOf(categoria) === -1) { finMsg('fin-lanc-erro', 'Selecione uma categoria.', 'erro'); return; }
+    if (!categoria) { finMsg('fin-lanc-erro', 'Selecione a conta.', 'erro'); return; }
     if (parceiroId && !finParceiroById(parceiroId)) { finMsg('fin-lanc-erro', 'Parceiro inválido.', 'erro'); return; }
     // Categoria de parceria sem parceiro é exatamente o erro que o Excel produzia.
     if (!parceiroId && FIN_CATEGORIAS_PARCERIA.indexOf(categoria) > -1) {
@@ -1583,8 +1765,9 @@ async function finSalvarLancamento() {
             const sel = document.getElementById('fin-painel-ano');
             if (sel) sel.value = ano;
         }
-        finResetLancamentoForm();
+        finResetLancamentoForm(true);
         await finLoadAno();
+        document.getElementById('fin-lanc-descricao').focus();
     } catch (e) {
         finMsg('fin-lanc-erro', 'Erro ao salvar: ' + e.message, 'erro');
     }
@@ -1595,6 +1778,258 @@ async function finExcluirLancamento(id) {
     if (!confirm('Excluir este lançamento?')) return;
     await FIN.db.collection('lancamentos').doc(id).delete();
     await finLoadAno();
+}
+
+// ---------- CONTA GARANTIDA ----------
+async function finLoadGarantia() {
+    try {
+        const snap = await FIN.db.collection('contaGarantida').where('ano', '==', FIN.ano).get();
+        FIN.garantia = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+        finMsg('fin-gar-erro', '');
+    } catch (e) {
+        FIN.garantia = [];
+        finMsg('fin-gar-erro', 'Sem permissão para ler contaGarantida (libere a coleção nas regras do Firestore): ' + e.message, 'alerta');
+    }
+}
+
+async function finSalvarGarantiaInicial() {
+    if (!finRequire()) return;
+    const v = parseFloat(document.getElementById('fin-gar-inicial').value);
+    FIN.garantiaInicial = isFinite(v) ? v : 0;
+    try {
+        await FIN.db.collection('configFinanceiro').doc(String(FIN.ano)).set({
+            garantiaInicial: FIN.garantiaInicial,
+            atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            atualizadoPor: FIN.user ? FIN.user.email : null
+        }, { merge: true });
+        finMsg('fin-gar-erro', '');
+    } catch (e) {
+        finMsg('fin-gar-erro', 'Não salvou o saldo inicial: ' + e.message, 'erro');
+    }
+    finRenderGarantia();
+    finRenderFluxo();
+}
+
+async function finSalvarGarantia() {
+    if (!finRequire()) return;
+    const data = document.getElementById('fin-gar-data').value;
+    const saldo = parseFloat(document.getElementById('fin-gar-saldo').value);
+    if (!data) { finMsg('fin-gar-erro', 'Informe a data.', 'erro'); return; }
+    if (!isFinite(saldo)) { finMsg('fin-gar-erro', 'Informe o saldo do dia.', 'erro'); return; }
+    const [ano, mes] = data.split('-').map(Number);
+    try {
+        // Um registro por dia: salvar de novo na mesma data corrige o saldo.
+        const dados = {
+            data: data, ano: ano, mes: mes, saldo: saldo,
+            obs: document.getElementById('fin-gar-obs').value.trim(),
+            atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            atualizadoPor: FIN.user ? FIN.user.email : null
+        };
+        // id = data: dois usuarios no mesmo dia gravam o mesmo documento.
+        await FIN.db.collection('contaGarantida').doc(data).set(dados, { merge: true });
+        document.getElementById('fin-gar-saldo').value = '';
+        document.getElementById('fin-gar-obs').value = '';
+        finMsg('fin-gar-erro', '');
+        if (ano !== FIN.ano) finSetAno(ano); else await finLoadAno();
+        document.getElementById('fin-gar-saldo').focus();
+    } catch (e) {
+        finMsg('fin-gar-erro', 'Erro ao salvar: ' + e.message, 'erro');
+    }
+}
+
+async function finExcluirGarantia(id) {
+    if (!finRequire() || !confirm('Excluir este registro?')) return;
+    await FIN.db.collection('contaGarantida').doc(id).delete();
+    await finLoadAno();
+}
+
+function finRenderGarantia() {
+    const body = document.getElementById('fin-gar-body');
+    if (!body) return;
+    const inp = document.getElementById('fin-gar-inicial');
+    if (inp && document.activeElement !== inp) inp.value = FIN.garantiaInicial || '';
+    const g = finGarantiaResumo(FIN.garantia, FIN.garantiaInicial);
+    document.getElementById('fin-gar-atual').innerText = finBRL(g.atual);
+    document.getElementById('fin-gar-meses').innerHTML = g.meses.map((m, i) => `<tr>
+        <td class="px-4 py-2 text-xs">${FIN_MESES[i]}</td>
+        <td class="px-4 py-2 text-right text-xs">${m.saldoFinal == null ? '<span class="text-slate-300">—</span>' : finBRL(m.saldoFinal)}</td>
+        <td class="px-4 py-2 text-right text-xs font-semibold ${m.reducao > 0 ? 'text-emerald-600' : m.reducao < 0 ? 'text-red-600' : 'text-slate-400'}">${m.reducao == null ? '—' : finBRL(m.reducao)}</td></tr>`).join('');
+    body.innerHTML = g.ordem.length ? g.ordem.slice().reverse().map(r => {
+        const v = g.variacoes[r.id];
+        return `<tr class="hover:bg-slate-50/60">
+            <td class="px-4 py-2 text-xs whitespace-nowrap">${finDataBR(r.data)}</td>
+            <td class="px-4 py-2 text-right text-xs font-semibold">${finBRL(r.saldo)}</td>
+            <td class="px-4 py-2 text-right text-xs ${v > 0 ? 'text-red-600' : v < 0 ? 'text-emerald-600' : 'text-slate-400'}">${finBRL(v)}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">${sanitize(r.obs)}</td>
+            <td class="px-4 py-2 text-right"><button onclick="finExcluirGarantia('${r.id}')" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button></td></tr>`;
+    }).join('') : `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum registro em ${FIN.ano}.</td></tr>`;
+}
+
+// Importacao da aba "Controle Conta Garantida". Idempotente: o id do documento
+// e a data, entao rodar duas vezes sobrescreve em vez de duplicar.
+function finGarImportLer(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+            const nome = wb.SheetNames.find(n => finNormAscii(n).indexOf('conta garantida') > -1 && finNormAscii(n).indexOf('controle') > -1);
+            if (!nome) { finMsg('fin-gar-import-status', 'Aba "Controle Conta Garantida" não encontrada. Abas: ' + wb.SheetNames.join(' · '), 'erro'); return; }
+            const r = finGarantiaParse(XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true }));
+            if (!r.registros.length) { finMsg('fin-gar-import-status', 'Nenhum registro (Data + Saldo do Dia) encontrado na aba.', 'erro'); return; }
+            FIN.garImport = r;
+            const anos = [...new Set(r.registros.map(x => x.ano))].join(', ');
+            const box = document.getElementById('fin-gar-import-resumo');
+            box.innerHTML = `<b>${r.registros.length}</b> registros (${finDataBR(r.registros[0].data)} a ${finDataBR(r.registros[r.registros.length - 1].data)}), ano(s) ${anos}. `
+                + `Devedor inicial: <b>${r.inicial == null ? 'não encontrado' : finBRL(r.inicial)}</b>. Último saldo: <b>${finBRL(r.registros[r.registros.length - 1].saldo)}</b>.`
+                + (r.ignoradas.length ? ` ${r.ignoradas.length} linha(s) ignoradas.` : '');
+            box.classList.remove('hidden');
+            document.getElementById('fin-gar-import-btn').classList.remove('hidden');
+            finMsg('fin-gar-import-status', '');
+        } catch (err) {
+            finMsg('fin-gar-import-status', 'Erro ao ler o arquivo: ' + err.message, 'erro');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+async function finGarImportGravar() {
+    if (!finRequire() || !FIN.garImport) return;
+    const { registros, inicial } = FIN.garImport;
+    finMsg('fin-gar-import-status', 'Gravando…', 'alerta');
+    try {
+        for (let i = 0; i < registros.length; i += 400) {
+            const batch = FIN.db.batch();
+            registros.slice(i, i + 400).forEach(r => {
+                batch.set(FIN.db.collection('contaGarantida').doc(r.data), {
+                    data: r.data, ano: r.ano, mes: r.mes, saldo: r.saldo, obs: r.obs,
+                    origem: 'import',
+                    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                    atualizadoPor: FIN.user ? FIN.user.email : null
+                }, { merge: true });
+            });
+            await batch.commit();
+        }
+        if (inicial != null) {
+            await FIN.db.collection('configFinanceiro').doc(String(registros[0].ano)).set({
+                garantiaInicial: inicial,
+                atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                atualizadoPor: FIN.user ? FIN.user.email : null
+            }, { merge: true });
+        }
+        finMsg('fin-gar-import-status', `Pronto. ${registros.length} registros gravados${inicial != null ? ' e devedor inicial salvo' : ''}.`, 'ok');
+        FIN.garImport = null;
+        document.getElementById('fin-gar-import-btn').classList.add('hidden');
+        await finLoadAno();
+    } catch (e) {
+        finMsg('fin-gar-import-status', 'Erro ao gravar (regras do Firestore liberam contaGarantida e configFinanceiro?): ' + e.message, 'erro');
+    }
+}
+
+// ---------- FLUXO DE CAIXA MENSAL ----------
+const finFluxoAbertos = new Set();
+
+function finRenderFluxo() {
+    const head = document.getElementById('fin-fluxo-head');
+    const body = document.getElementById('fin-fluxo-body');
+    if (!head || !body) return;
+    const f = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial);
+    const th = 'px-3 py-2 text-right whitespace-nowrap';
+    head.innerHTML = `<tr><th class="px-3 py-2 min-w-[18rem]">Conta</th>`
+        + FIN_MESES.map(m => `<th class="${th}">${m}</th>`).join('') + `<th class="${th}">Ano</th></tr>`;
+
+    const money = v => v ? finBRL(v) : '<span class="text-slate-300">—</span>';
+    const linhaResumo = (rot, valores, total, cls) =>
+        `<tr class="${cls} font-bold"><td class="px-3 py-2">${rot}</td>`
+        + valores.map(v => `<td class="${th}">${finBRL(v)}</td>`).join('')
+        + `<td class="${th}">${total == null ? '' : finBRL(total)}</td></tr>`;
+    const r = f.resumo;
+    const soma = k => r.reduce((a, x) => a + x[k], 0);
+
+    let html = linhaResumo('Saldo inicial', r.map(x => x.saldoInicial), r[0].saldoInicial, 'bg-slate-50')
+        + linhaResumo('Total de entradas', r.map(x => x.entradas), soma('entradas'), 'text-emerald-700')
+        + linhaResumo('Total de saídas', r.map(x => x.saidas), soma('saidas'), 'text-red-700')
+        + linhaResumo('Resultado do mês', r.map(x => x.resultado), soma('resultado'), 'bg-slate-50')
+        + linhaResumo('Saldo final', r.map(x => x.saldoFinal), r[11].saldoFinal, 'bg-[#4A0404] text-white');
+    // Saldo devedor da conta garantida no fim de cada mes (vazio se nao houve registro).
+    const gar = finGarantiaResumo(FIN.garantia, FIN.garantiaInicial).meses;
+    html += `<tr class="bg-amber-50 text-amber-800 font-bold"><td class="px-3 py-2">Saldo pendente conta garantida</td>`
+        + gar.map(x => `<td class="${th}">${x.saldoFinal == null ? '<span class="text-amber-300">—</span>' : finBRL(x.saldoFinal)}</td>`).join('')
+        + `<td class="${th}"></td></tr>`;
+
+    f.grupos.forEach((g, gi) => {
+        const total = g.total.reduce((a, b) => a + b, 0);
+        const contas = g.contas.filter(c => c.total);
+        if (!total && !contas.length) return;
+        const aberto = finFluxoAbertos.has(gi);
+        html += `<tr class="bg-slate-100/70 font-semibold cursor-pointer hover:bg-slate-100" onclick="finFluxoToggle(${gi})">
+            <td class="px-3 py-2"><i class="fa-solid fa-chevron-${aberto ? 'down' : 'right'} text-[10px] mr-2 text-slate-400"></i>${sanitize(g.grupo)}</td>`
+            + g.total.map(v => `<td class="${th}">${money(v)}</td>`).join('') + `<td class="${th}">${money(total)}</td></tr>`;
+        if (!aberto) return;
+        contas.forEach(c => {
+            html += `<tr class="hover:bg-slate-50/60"><td class="px-3 py-1.5 pl-9 text-xs">${sanitize(c.conta)}</td>`
+                + c.valores.map((v, m) => `<td class="${th} text-xs">${v
+                    ? `<a href="#" class="text-slate-700 hover:text-[#960018] hover:underline" data-conta="${sanitize(c.codigo)}" data-mes="${m + 1}">${finBRL(v)}</a>`
+                    : '<span class="text-slate-300">—</span>'}</td>`).join('')
+                + `<td class="${th} text-xs font-semibold">${finBRL(c.total)}</td></tr>`;
+        });
+    });
+    body.innerHTML = html;
+}
+
+// Clique delegado: o codigo da conta vem de dados importados e nunca entra em
+// atributo onclick (evita injecao de codigo).
+document.addEventListener('click', e => {
+    const a = e.target.closest ? e.target.closest('#fin-fluxo-body a[data-conta]') : null;
+    if (!a) return;
+    e.preventDefault();
+    finFluxoAbrirConta(a.dataset.conta, Number(a.dataset.mes));
+});
+
+function finFluxoToggle(gi) {
+    if (finFluxoAbertos.has(gi)) finFluxoAbertos.delete(gi); else finFluxoAbertos.add(gi);
+    finRenderFluxo();
+}
+
+function finFluxoToggleTudo() {
+    const n = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial).grupos.length;
+    if (finFluxoAbertos.size) finFluxoAbertos.clear();
+    else for (let i = 0; i < n; i++) finFluxoAbertos.add(i);
+    finRenderFluxo();
+}
+
+// Clique numa celula: abre a lista ja filtrada por conta e mes.
+function finFluxoAbrirConta(codigo, mes) {
+    const sel = document.getElementById('fin-filtro-conta');
+    const valor = codigo || '__sem__';
+    // Conta fora do plano nao existe no select: cria a opcao para o filtro valer.
+    if (![].some.call(sel.options, o => o.value === valor)) {
+        sel.insertAdjacentHTML('beforeend', `<option value="${sanitize(valor)}">${sanitize(codigo || '(sem conta)')} (fora do plano)</option>`);
+    }
+    sel.value = valor;
+    document.getElementById('fin-filtro-mes').value = String(mes);
+    const btn = [].find.call(document.querySelectorAll('.fin-nav'), b => (b.getAttribute('onclick') || '').indexOf("'fin-lancamentos'") > -1);
+    switchTab('fin-lancamentos', btn);
+}
+
+function finExportFluxo() {
+    const f = finFluxoMensal(FIN.lancamentos, FIN.saldoInicial);
+    const linha = (rot, v) => [rot].concat(v, v.reduce((a, b) => a + b, 0));
+    const r = f.resumo;
+    const aoa = [['Conta'].concat(FIN_MESES, 'Ano'),
+        ['Saldo inicial'].concat(r.map(x => x.saldoInicial), r[0].saldoInicial),
+        linha('Total de entradas', r.map(x => x.entradas)),
+        linha('Total de saídas', r.map(x => x.saidas)),
+        linha('Resultado do mês', r.map(x => x.resultado)),
+        ['Saldo final'].concat(r.map(x => x.saldoFinal), r[11].saldoFinal),
+        ['Saldo pendente conta garantida'].concat(
+            finGarantiaResumo(FIN.garantia, FIN.garantiaInicial).meses.map(x => (x.saldoFinal == null ? '' : x.saldoFinal)), '')];
+    f.grupos.forEach(g => {
+        aoa.push(linha(g.grupo.toUpperCase(), g.total));
+        g.contas.filter(c => c.total).forEach(c => aoa.push(linha(c.conta, c.valores)));
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Fluxo ' + FIN.ano);
+    XLSX.writeFile(wb, `Fluxo_de_Caixa_${FIN.ano}.xlsx`);
 }
 
 // ---------- IMPORTAÇÃO / CONCILIAÇÃO ----------
@@ -1938,10 +2373,18 @@ async function finImportGravar() {
         }
         await finLoadParceiros();
 
-        // Firestore aceita 500 operações por batch.
-        for (let i = 0; i < linhas.length; i += 400) {
+        // Parceiro de cada linha: so categoria de parceria recebe vinculo. As
+        // regras do Firestore validam o parceiro de cada gravacao e limitam as
+        // consultas por lote, entao o lote tambem limita parceiros distintos.
+        const parceiroDaLinha = l => (finCategoriaDeParceria(l.categoria)
+            ? (mapa[fundir(finChaveGrupo(l.movimento))] || null) : null);
+        // Agrupa por parceiro antes de dividir: lotes grandes, poucos parceiros em cada.
+        const agrupadas = linhas.slice().sort((a, b) => String(parceiroDaLinha(a) || '').localeCompare(String(parceiroDaLinha(b) || '')));
+        const lotes = finLotesPorParceiro(agrupadas, parceiroDaLinha, 400, 12);
+        let gravadas = 0;
+        for (const lote of lotes) {
             const batch = FIN.db.batch();
-            linhas.slice(i, i + 400).forEach(l => {
+            lote.forEach(l => {
                 // So lancamento de categoria de parceria recebe vinculo: um
                 // aluguel pago a "Bruna" nao pode entrar no limite dela.
                 const pid = finCategoriaDeParceria(l.categoria)
@@ -1965,7 +2408,8 @@ async function finImportGravar() {
                 });
             });
             await batch.commit();
-            finMsg('fin-import-status', `Gravando… ${Math.min(i + 400, linhas.length)} de ${linhas.length}.`, 'alerta');
+            gravadas += lote.length;
+            finMsg('fin-import-status', `Gravando… ${gravadas} de ${linhas.length}.`, 'alerta');
         }
         finMsg('fin-import-status', `Pronto. ${linhas.length} lançamentos gravados (lote <code>${importId}</code>).`, 'ok');
         document.getElementById('fin-import-conciliacao').classList.add('hidden');
@@ -1977,6 +2421,16 @@ async function finImportGravar() {
     }
 }
 
+// Enter em qualquer campo do formulario salva (lancamento em sequencia, sem mouse).
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    const alvo = e.target.closest ? e.target.closest('#fin-lanc-form, #fin-gar-form') : null;
+    if (alvo && e.target.tagName !== 'BUTTON' && e.target.id !== 'fin-gar-inicial') {
+        e.preventDefault();
+        if (alvo.id === 'fin-gar-form') finSalvarGarantia(); else finSalvarLancamento();
+    }
+});
+
 // ---------- entrada do módulo ----------
 function finOnTab(id) {
     if (!finInitFirebase()) {
@@ -1985,11 +2439,13 @@ function finOnTab(id) {
     }
     finPopulaAnos();
     if (!FIN.parceiros.length && !FIN.lancamentos.length) finLoadAno();
-    else { finRenderPainel(); finRenderParceiros(); finPopulaSelects(); finRenderLancamentos(); }
+    else { finRenderPainel(); finRenderParceiros(); finPopulaSelects(); finRenderLancamentos(); finRenderFluxo(); finRenderGarantia(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     finInitFirebase();
+    const garFile = document.getElementById('fin-gar-file');
+    if (garFile) garFile.addEventListener('change', e => { if (e.target.files[0]) finGarImportLer(e.target.files[0]); });
     const zone = document.getElementById('fin-import-zone');
     if (zone) {
         const input = document.getElementById('fin-import-file');
@@ -2040,7 +2496,7 @@ switchTab = function(id, el) {
         if (alvo) alvo.classList.remove('hidden');
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         if (el) el.classList.add('active');
-        const titulos = {'fin-painel':'Painel de Parcerias','fin-lancamentos':'Lançamentos','fin-parceiros':'Parceiros','fin-import':'Importar planilha'};
+        const titulos = {'fin-painel':'Painel de Parcerias','fin-fluxo':'Fluxo de Caixa','fin-garantia':'Conta Garantida','fin-lancamentos':'Lançamentos','fin-parceiros':'Parceiros','fin-import':'Importar planilha'};
         const h = document.getElementById('header-title');
         if (h) h.innerText = titulos[id] || 'Financeiro';
         const al = document.getElementById('deadline-alerts');

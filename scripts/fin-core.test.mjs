@@ -1,0 +1,261 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+
+const { FIN_CONTAS, FIN_PLANO, finTipoDaConta, finSinal, finCalcSaldos } =
+  createRequire(import.meta.url)("../fin-core.js");
+
+test("plano de contas tem as 86 contas e codigos unicos", () => {
+  assert.equal(FIN_CONTAS.length, 86);
+  const codigos = FIN_CONTAS.map((c) => c.split(" - ")[0]);
+  assert.equal(new Set(codigos).size, codigos.length);
+  assert.ok(FIN_PLANO.every((g) => g.contas.length > 0));
+});
+
+test("tipo vem do codigo da conta", () => {
+  assert.equal(finTipoDaConta("1.01.04 - Honorários - Mensal"), "Entrada");
+  assert.equal(finTipoDaConta("2.05.003 - Tarifas Bancárias"), "Saída");
+  assert.equal(finTipoDaConta("3.01.001 - Outra"), null);
+  assert.equal(finTipoDaConta(""), null);
+});
+
+test("sinal do saldo por tipo", () => {
+  assert.equal(finSinal("Entrada"), 1);
+  assert.equal(finSinal("Saída"), -1);
+  // como na planilha, so Entrada e Saida movimentam o saldo
+  for (const t of [
+    "Repasse",
+    "Despesa Conta PF",
+    "Recebimento Repasse",
+    "Espécie",
+    "",
+  ]) {
+    assert.equal(finSinal(t), 0, t);
+  }
+  assert.equal(finSinal(""), 0);
+});
+
+test("saldo corrente reproduz a formula da planilha (janeiro)", () => {
+  // Valores reais das primeiras linhas: saldo inicial 0,33.
+  const l = [
+    { id: "a", data: "2026-01-02", tipo: "Entrada", valor: 11000 },
+    { id: "b", data: "2026-01-02", tipo: "Entrada", valor: 2277 },
+    { id: "c", data: "2026-01-02", tipo: "Saída", valor: 3.12 },
+  ];
+  const r = finCalcSaldos(l, 0.33);
+  assert.equal(r.saldos.a, 11000.33);
+  assert.equal(r.saldos.c, 13274.21);
+  assert.equal(r.entradas, 13277);
+  assert.equal(r.saidas, 3.12);
+  assert.equal(r.saldoFinal, 13274.21);
+});
+
+test("ordena por data sem perder a ordem do mesmo dia", () => {
+  const l = [
+    { id: "x", data: "2026-02-01", tipo: "Saída", valor: 10 },
+    { id: "y", data: "2026-01-31", tipo: "Entrada", valor: 100 },
+  ];
+  const r = finCalcSaldos(l, 0);
+  assert.deepEqual(
+    r.ordem.map((i) => i.id),
+    ["y", "x"],
+  );
+  assert.equal(r.saldos.x, 90);
+});
+
+test("fluxo mensal: saldo encadeia os meses e agrupa por codigo da conta", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const l = [
+    {
+      mes: 1,
+      tipo: "Entrada",
+      valor: 1000,
+      categoria: "1.01.04 - Honorários - Mensal",
+    },
+    {
+      mes: 1,
+      tipo: "Saída",
+      valor: 200,
+      categoria: "2.01.008 - Energia Elétrica",
+    },
+    // texto diferente do plano, mesmo codigo: deve cair na mesma linha
+    { mes: 2, tipo: "Saída", valor: 50, categoria: "2.01.008 -  Energia" },
+    { mes: 2, tipo: "Saída", valor: 10, categoria: "9.99.999 - Conta antiga" },
+  ];
+  const r = finFluxoMensal(l, 100);
+  assert.equal(r.resumo[0].saldoInicial, 100);
+  assert.equal(r.resumo[0].resultado, 800);
+  assert.equal(r.resumo[0].saldoFinal, 900);
+  assert.equal(r.resumo[1].saldoInicial, 900);
+  assert.equal(r.resumo[1].saidas, 50); // a conta antiga fica fora dos totais
+  assert.equal(r.resumo[11].saldoFinal, 850);
+  const energia = r.grupos
+    .flatMap((g) => g.contas)
+    .find((c) => c.codigo === "2.01.008");
+  assert.deepEqual(
+    [energia.valores[0], energia.valores[1], energia.total],
+    [200, 50, 250],
+  );
+  const fora = r.grupos.find((g) => g.grupo.startsWith("Fora do plano"));
+  assert.equal(fora.total[1], 10);
+});
+
+test("fluxo mensal ignora mes invalido sem quebrar", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const r = finFluxoMensal(
+    [{ mes: 13, tipo: "Entrada", valor: 5, categoria: "1.01.04 - X" }],
+    0,
+  );
+  assert.equal(r.resumo[11].saldoFinal, 0);
+});
+
+test("conta garantida: variacao, saldo do mes e reducao como na planilha", () => {
+  const { finGarantiaResumo } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  // Valores reais de janeiro: devedor inicial 177.329,82.
+  const r = [
+    { id: "a", data: "2026-01-02", mes: 1, saldo: 178704.82 },
+    { id: "b", data: "2026-01-05", mes: 1, saldo: 267564.82 },
+    { id: "c", data: "2026-02-03", mes: 2, saldo: 260000 },
+  ];
+  const g = finGarantiaResumo(r, 177329.82);
+  assert.equal(g.variacoes.a, 1375);
+  assert.equal(g.variacoes.b, 88860);
+  assert.equal(g.meses[0].saldoFinal, 267564.82);
+  assert.equal(g.meses[0].reducao, -90235); // dívida subiu
+  assert.equal(g.meses[1].reducao, 7564.82);
+  assert.equal(g.meses[2].saldoFinal, null);
+  assert.equal(g.atual, 260000);
+});
+
+test("conta garantida sem registros usa o devedor inicial", () => {
+  const { finGarantiaResumo } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  const g = finGarantiaResumo([], 500);
+  assert.equal(g.atual, 500);
+  assert.equal(g.meses[0].reducao, null);
+});
+
+test("fluxo soma so os tipos que a planilha soma em cada conta", () => {
+  const { finFluxoMensal } = createRequire(import.meta.url)("../fin-core.js");
+  const l = [
+    {
+      mes: 1,
+      tipo: "Entrada",
+      valor: 1000,
+      categoria: "1.01.04 - Honorários - Mensal",
+    },
+    {
+      mes: 1,
+      tipo: "Saída",
+      valor: 300,
+      categoria: "2.01.008 - Energia Elétrica",
+    },
+    // 2.* aceita Recebimento Repasse (formula da planilha), mas Repasse/Despesa Conta PF nao
+    {
+      mes: 1,
+      tipo: "Recebimento Repasse",
+      valor: 50,
+      categoria: "2.02.001 - Parceria Jurídica",
+    },
+    {
+      mes: 1,
+      tipo: "Despesa Conta PF",
+      valor: 8000,
+      categoria: "2.02.002 - Honorários Fixos",
+    },
+    { mes: 1, tipo: "", valor: 7, categoria: "2.01.008 - Energia Elétrica" },
+    // Espécie fica fora dos totais de entrada
+    {
+      mes: 1,
+      tipo: "Espécie",
+      valor: 5000,
+      categoria: "1.04.01 - Honorários - Recebimento em Espécie",
+    },
+  ];
+  const r = finFluxoMensal(l, 0.33);
+  assert.equal(r.resumo[0].entradas, 1000);
+  assert.equal(r.resumo[0].saidas, 350);
+  assert.equal(r.resumo[0].saldoFinal, 650.33);
+  const fora = r.grupos.find((g) => g.grupo.startsWith("Fora do plano"));
+  assert.equal(fora.total[0], 8007); // Despesa Conta PF + tipo vazio aparecem, sem entrar nos totais
+  const esp = r.grupos
+    .flatMap((g) => g.contas)
+    .find((c) => c.codigo === "1.04.01");
+  assert.equal(esp.valores[0], 5000);
+});
+
+test("saldo corrente ignora Repasse, Despesa Conta PF e Recebimento Repasse", () => {
+  const l = [
+    { id: "1", data: "2026-01-05", tipo: "Entrada", valor: 100 },
+    { id: "2", data: "2026-01-05", tipo: "Despesa Conta PF", valor: 1518 },
+    { id: "3", data: "2026-01-05", tipo: "Recebimento Repasse", valor: 40 },
+    { id: "4", data: "2026-01-05", tipo: "Saída", valor: 10 },
+  ];
+  assert.equal(finCalcSaldos(l, 0).saldoFinal, 90);
+});
+
+test("importa a aba Controle Conta Garantida (datas em texto e Date, ultima vence)", () => {
+  const { finGarantiaParse } = createRequire(import.meta.url)("../fin-core.js");
+  const rows = [
+    ["CONTROLE CONTA GARANTIDA - 2026"],
+    [],
+    ["Saldo Devedor Inicial (informado)", 177329.82],
+    ["Saldo Devedor Atual", 1],
+    [],
+    ["Data", "Mês", "Saldo do Dia (R$)", "Variação", "Observação"],
+    ["02/01/2026", "JANEIRO", 178704.82, 1375, ""],
+    [new Date(2026, 3, 10), "ABRIL", 324279.25, 0, "fim"],
+    [new Date(2026, 3, 10), "ABRIL", 330000, 0, "corrigido"],
+    ["texto solto", "", "", "", ""],
+    [null, null, null],
+  ];
+  const r = finGarantiaParse(rows);
+  assert.equal(r.inicial, 177329.82);
+  assert.deepEqual(
+    r.registros.map((x) => [x.data, x.mes, x.saldo]),
+    [
+      ["2026-01-02", 1, 178704.82],
+      ["2026-04-10", 4, 330000],
+    ],
+  );
+  assert.equal(r.registros[1].obs, "corrigido");
+  assert.deepEqual(r.ignoradas, [10]);
+});
+
+test("aba sem cabecalho de conta garantida nao gera registros", () => {
+  const { finGarantiaParse } = createRequire(import.meta.url)("../fin-core.js");
+  assert.equal(finGarantiaParse([["x"]]).achouCabecalho, false);
+});
+
+test("lotes de gravacao respeitam tamanho e parceiros distintos", () => {
+  const { finLotesPorParceiro } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  const itens = [];
+  for (let p = 0; p < 30; p++)
+    for (let i = 0; i < 10; i++) itens.push({ p: p < 25 ? "p" + p : null });
+  const lotes = finLotesPorParceiro(itens, (x) => x.p, 400, 12);
+  assert.equal(lotes.flat().length, itens.length);
+  for (const l of lotes) {
+    assert.ok(l.length <= 400);
+    assert.ok(new Set(l.map((x) => x.p).filter(Boolean)).size <= 12);
+  }
+  assert.deepEqual(
+    finLotesPorParceiro([], (x) => x, 400, 12),
+    [],
+  );
+  // sem parceiro nunca estoura o limite de parceiros, so o de tamanho
+  const sem = finLotesPorParceiro(
+    new Array(850).fill({ p: null }),
+    (x) => x.p,
+    400,
+    12,
+  );
+  assert.deepEqual(
+    sem.map((l) => l.length),
+    [400, 400, 50],
+  );
+});

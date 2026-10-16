@@ -1,0 +1,21 @@
+{
+  "name": "juridico-analytics",
+  "private": true,
+  "description": "Site estatico (sem build). O package.json existe apenas para ferramentas de desenvolvimento.",
+  "scripts": {
+    "dev": "python3 -m http.server 8080",
+    "lint": "eslint app.js fin-core.js scripts",
+    "format:check": "prettier --check package.json eslint.config.mjs scripts",
+    "test": "node --test scripts/*.test.mjs",
+    "test:ui": "node scripts/fin-ui.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "npm run lint && npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "playwright-core": "^1.50.0",
+    "prettier": "^3.0.0"
+  }
+}
