@@ -229,3 +229,33 @@ test("aba sem cabecalho de conta garantida nao gera registros", () => {
   const { finGarantiaParse } = createRequire(import.meta.url)("../fin-core.js");
   assert.equal(finGarantiaParse([["x"]]).achouCabecalho, false);
 });
+
+test("lotes de gravacao respeitam tamanho e parceiros distintos", () => {
+  const { finLotesPorParceiro } = createRequire(import.meta.url)(
+    "../fin-core.js",
+  );
+  const itens = [];
+  for (let p = 0; p < 30; p++)
+    for (let i = 0; i < 10; i++) itens.push({ p: p < 25 ? "p" + p : null });
+  const lotes = finLotesPorParceiro(itens, (x) => x.p, 400, 12);
+  assert.equal(lotes.flat().length, itens.length);
+  for (const l of lotes) {
+    assert.ok(l.length <= 400);
+    assert.ok(new Set(l.map((x) => x.p).filter(Boolean)).size <= 12);
+  }
+  assert.deepEqual(
+    finLotesPorParceiro([], (x) => x, 400, 12),
+    [],
+  );
+  // sem parceiro nunca estoura o limite de parceiros, so o de tamanho
+  const sem = finLotesPorParceiro(
+    new Array(850).fill({ p: null }),
+    (x) => x.p,
+    400,
+    12,
+  );
+  assert.deepEqual(
+    sem.map((l) => l.length),
+    [400, 400, 50],
+  );
+});

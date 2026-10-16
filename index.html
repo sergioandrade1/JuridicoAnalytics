@@ -2373,10 +2373,18 @@ async function finImportGravar() {
         }
         await finLoadParceiros();
 
-        // Firestore aceita 500 operações por batch.
-        for (let i = 0; i < linhas.length; i += 400) {
+        // Parceiro de cada linha: so categoria de parceria recebe vinculo. As
+        // regras do Firestore validam o parceiro de cada gravacao e limitam as
+        // consultas por lote, entao o lote tambem limita parceiros distintos.
+        const parceiroDaLinha = l => (finCategoriaDeParceria(l.categoria)
+            ? (mapa[fundir(finChaveGrupo(l.movimento))] || null) : null);
+        // Agrupa por parceiro antes de dividir: lotes grandes, poucos parceiros em cada.
+        const agrupadas = linhas.slice().sort((a, b) => String(parceiroDaLinha(a) || '').localeCompare(String(parceiroDaLinha(b) || '')));
+        const lotes = finLotesPorParceiro(agrupadas, parceiroDaLinha, 400, 12);
+        let gravadas = 0;
+        for (const lote of lotes) {
             const batch = FIN.db.batch();
-            linhas.slice(i, i + 400).forEach(l => {
+            lote.forEach(l => {
                 // So lancamento de categoria de parceria recebe vinculo: um
                 // aluguel pago a "Bruna" nao pode entrar no limite dela.
                 const pid = finCategoriaDeParceria(l.categoria)
@@ -2400,7 +2408,8 @@ async function finImportGravar() {
                 });
             });
             await batch.commit();
-            finMsg('fin-import-status', `Gravando… ${Math.min(i + 400, linhas.length)} de ${linhas.length}.`, 'alerta');
+            gravadas += lote.length;
+            finMsg('fin-import-status', `Gravando… ${gravadas} de ${linhas.length}.`, 'alerta');
         }
         finMsg('fin-import-status', `Pronto. ${linhas.length} lançamentos gravados (lote <code>${importId}</code>).`, 'ok');
         document.getElementById('fin-import-conciliacao').classList.add('hidden');

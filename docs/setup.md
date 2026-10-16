@@ -48,14 +48,35 @@ Entregas feitas após o harness: lançamento rápido com plano de contas real, s
 | Importar a Conta Garantida (180 registros) | Pronto | Aba Importar planilha; idempotente (id = data); conferido mês a mês com a planilha |
 
 ## Regras do Firestore (sugestão, não aplicada)
-As coleções `configFinanceiro` e `contaGarantida` precisam estar liberadas para usuários autenticados. Adicione aos blocos existentes, adaptando ao padrão que as regras atuais já usam para `lancamentos` e `parceiros`:
+As coleções `configFinanceiro` e `contaGarantida` precisam estar liberadas para usuários autenticados. Adicione aos blocos existentes, dentro de `match /databases/{database}/documents`, antes do bloco final `match /{document=**}`, usando as funções `podeFinanceiro()` que as regras já têm:
 
 ```
-match /configFinanceiro/{ano} { allow read, write: if request.auth != null; }
-match /contaGarantida/{dia}   { allow read, write: if request.auth != null; }
+    match /configFinanceiro/{ano} {
+      allow read: if podeFinanceiro();
+      allow create, update: if podeFinanceiro()
+        && (!('saldoInicial' in request.resource.data) || request.resource.data.saldoInicial is number)
+        && (!('garantiaInicial' in request.resource.data) || request.resource.data.garantiaInicial is number);
+      allow delete: if false;
+    }
+
+    // Um documento por dia: o id e a data (AAAA-MM-DD).
+    match /contaGarantida/{dia} {
+      allow read: if podeFinanceiro();
+      allow create, update: if podeFinanceiro()
+        && request.resource.data.data is string
+        && request.resource.data.data == dia
+        && request.resource.data.ano is int
+        && request.resource.data.ano >= 2000
+        && request.resource.data.ano <= 2100
+        && request.resource.data.mes is int
+        && request.resource.data.mes >= 1
+        && request.resource.data.mes <= 12
+        && request.resource.data.saldo is number;
+      allow delete: if podeFinanceiro();
+    }
 ```
 
-Nada foi publicado nas regras; é uma alteração do console do Firebase, feita por você.
+Nada foi publicado nas regras (a validação do importador em lotes respeita o `exists()` do parceiro nas regras de `lancamentos`); é uma alteração do console do Firebase, feita por você.
 
 ## Ordem sugerida de entrada em produção
 1. Liberar as duas coleções nas regras.

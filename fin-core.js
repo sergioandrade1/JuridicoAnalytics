@@ -183,6 +183,26 @@ function finGarantiaParse(rows) {
     return { inicial: inicial, registros: registros, ignoradas: ignoradas, achouCabecalho: cabecalho >= 0 };
 }
 
+// Divide itens em lotes de gravacao. As regras do Firestore fazem exists() no
+// parceiro de cada lancamento e um lote aceita poucas consultas de regra (20,
+// contando o perfil do usuario), entao cada lote limita tambem a quantidade de
+// parceiros DISTINTOS, alem do tamanho maximo. Mantem a ordem de chegada.
+function finLotesPorParceiro(itens, parceiroDe, maxTamanho, maxParceiros) {
+    const lotes = [];
+    let atual = [], ids = new Set();
+    (itens || []).forEach(it => {
+        const pid = parceiroDe(it);
+        const novo = pid && !ids.has(pid);
+        if (atual.length && (atual.length >= maxTamanho || (novo && ids.size >= maxParceiros))) {
+            lotes.push(atual); atual = []; ids = new Set();
+        }
+        atual.push(it);
+        if (pid) ids.add(pid);
+    });
+    if (atual.length) lotes.push(atual);
+    return lotes;
+}
+
 if (typeof module !== 'undefined') {
-    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finTipoCasaConta, finFluxoMensal, finGarantiaResumo, finGarantiaParse };
+    module.exports = { FIN_PLANO, FIN_CONTAS, finTipoDaConta, finSinal, finCalcSaldos, finCodigoConta, finTipoCasaConta, finFluxoMensal, finGarantiaResumo, finGarantiaParse, finLotesPorParceiro };
 }
