@@ -1,4 +1,9 @@
-﻿// ── Sheets menu ──
+﻿// Globais chamados por handlers inline do index.html (nao sao codigo morto):
+/* exported toggleSheetsMenu, toggleTheme, toggleSidebar, restoreSession, newAnalysis, authStep1,
+   proceedAfterUpload, loadDemoData, resetFile, switchTab, setDeadlineFilter, openFluxoRaioX,
+   exportToExcel, openEmailConfig, saveEmailConfig, testEmailConfig, openSendEmailModal,
+   executeSendEmail */
+// ── Sheets menu ──
 function toggleSheetsMenu(){const l=document.getElementById('sheets-list'),i=document.getElementById('sheets-toggle-icon');l.classList.toggle('hidden');i.style.transform=l.classList.contains('hidden')?'rotate(-90deg)':'rotate(0deg)';}
 
 // ── Firebase ──
