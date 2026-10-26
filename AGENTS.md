@@ -35,5 +35,6 @@
 
 - `app.js` e legado compactado em poucas linhas longas; ao mexer, prefira extrair trechos pequenos e legiveis em vez de ampliar linhas.
 - Globais de `app.js` chamados por `onclick` do `index.html` ficam na diretiva `/* exported */` do topo; inclua ali ao criar um novo.
+- Dado externo em HTML passa por `sanitize()`; argumento de `onclick` interpolado usa `jsArg()` (ambos em `app.js`).
 - `index.html` concentra marcacao e scripts inline (painel financeiro depende de `firebaseConfig` de `app.js`; `app.js` carrega primeiro).
 - Os cabecalhos de cache ficam em `_headers`, nao em `netlify.toml`.

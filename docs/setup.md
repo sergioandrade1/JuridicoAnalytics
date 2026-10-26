@@ -42,8 +42,8 @@
 
 ## Segurança (baseline 2026-10-26, commit `c5a620c`)
 Revisão estática, somente leitura, com `docs/prompts/security-review.md`; relatório completo privado, fora do repositório. Nada corrigido (correções pedem instrução separada). Achados:
-1. Alta: campos de lançamentos e parceiros do Firestore vão para `innerHTML` sem escape no painel financeiro (`index.html`, extrato e listas). Corrigir com escape (`sanitize`) nesses templates.
-2. Média: nomes de advogados em `onclick` de `app.js`: o escape de aspas atual não protege o atributo.
+1. Alta, **corrigido**: campos de lançamentos, parceiros e da importação iam para `innerHTML` sem escape no financeiro. Agora passam por `sanitize`; ids em `onclick` usam `jsArg`. Regressão: `npm run test:ui` ("dados do Firestore escapados"), que falhava antes da correção.
+2. Média, **corrigido**: nome de advogado no `onclick` de `app.js` agora usa `jsArg`. Regressão: `npm test` ("jsArg gera argumento de onclick seguro").
 3. Média: "lembrar-me" guarda a senha em base64 no `localStorage` (`app.js`, `saveCredentials`).
 4. Média: scripts de CDN sem versão fixa/SRI; `_headers` sem CSP nem proteção contra frame.
 5. Baixa (a validar): toasts renderizados como HTML.

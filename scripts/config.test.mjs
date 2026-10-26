@@ -34,3 +34,25 @@ test("fluxo nao injeta texto de categoria em atributo onclick (regressao XSS)", 
 test("_headers cobre fin-core.js", () => {
   assert.ok(read("_headers").includes("/fin-core.js"));
 });
+
+test("jsArg gera argumento de onclick seguro (regressao: nome de advogado com aspas)", () => {
+  const src = read("app.js");
+  const fns = ["sanitize", "jsArg"].map(
+    (n) => src.match(new RegExp(`function ${n}\\(.*`))[0],
+  );
+  const jsArg = new Function(`${fns.join("\n")}; return jsArg;`)();
+  const decode = (s) =>
+    s
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+  for (const nome of [`D'Avila`, `x');alert(1);//`, `a"b<c>&`]) {
+    const attr = jsArg(nome);
+    assert.ok(!/["'<>]/.test(attr), attr);
+    // o navegador decodifica o atributo e executa f(<arg>)
+    assert.equal(new Function(`return ${decode(attr)};`)(), nome);
+  }
+  assert.ok(!src.includes(`openLawyerModal('\${`));
+});
