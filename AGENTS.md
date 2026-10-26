@@ -27,10 +27,14 @@
 - Publicar, push para main, custos e acoes destrutivas exigem autorizacao especifica.
 - Segredos nunca no repositorio. A `apiKey` do Firebase web e publica por desenho; a seguranca depende das regras do Firestore/Auth.
 - Atualize o documento responsavel (`PRODUCT.md`, `docs/*`) junto de mudancas de comportamento, comandos ou configuracao.
+- Bloqueio parcial afeta so o que depende dele; continue o resto autorizado. Ao retomar trabalho, confira checkout, arquivos e checks antes de confiar em anotacoes.
+- Revisao de seguranca: `docs/prompts/security-review.md` (somente leitura, relatorio privado fora do repo).
 - Apos cada ciclo de implementacao ou correcao, sugira 3 a 8 ciclos de code review (convencao do projeto), com motivo e prompt copiavel.
 
 ## Convenções
 
 - `app.js` e legado compactado em poucas linhas longas; ao mexer, prefira extrair trechos pequenos e legiveis em vez de ampliar linhas.
+- Globais de `app.js` chamados por `onclick` do `index.html` ficam na diretiva `/* exported */` do topo; inclua ali ao criar um novo.
+- Dado externo em HTML passa por `sanitize()`; argumento de `onclick` interpolado usa `jsArg()` (ambos em `app.js`).
 - `index.html` concentra marcacao e scripts inline (painel financeiro depende de `firebaseConfig` de `app.js`; `app.js` carrega primeiro).
 - Os cabecalhos de cache ficam em `_headers`, nao em `netlify.toml`.

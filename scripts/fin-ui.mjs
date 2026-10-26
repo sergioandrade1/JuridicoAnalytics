@@ -328,6 +328,41 @@ try {
   );
   console.log("OK: importacao da conta garantida");
 
+  // Regressao XSS: nomes, tipos e ids vindos do Firestore nao viram HTML/JS.
+  const evil = '<img src=x onerror="window.__xss=1">';
+  const xssRes = await page.evaluate(async (evil) => {
+    window.__store.parceiros["p'x"] = { nome: evil, limite: 100, ativo: true };
+    window.__store.lancamentos["l'x"] = {
+      data: "2026-01-05",
+      ano: 2026,
+      mes: 1,
+      valor: 500,
+      tipo: evil,
+      categoria: evil,
+      descricao: evil,
+      parceiroId: "p'x",
+    };
+    await finLoadAno(2026);
+    ["fin-painel", "fin-lancamentos", "fin-parceiros"].forEach((t) =>
+      finOnTab(t),
+    );
+    await new Promise((r) => setTimeout(r, 300));
+    const chamados = [];
+    window.finEditParceiro = (id) => chamados.push(id);
+    window.finEditLancamento = (id) => chamados.push(id);
+    document.querySelector('#fin-parc-body button[title="Editar"]')?.click();
+    [...document.querySelectorAll("#fin-lanc-body button")][0]?.click();
+    return {
+      imgs: document.querySelectorAll('img[src="x"]').length,
+      xss: window.__xss,
+      chamados,
+    };
+  }, evil);
+  assert.equal(xssRes.imgs, 0);
+  assert.equal(xssRes.xss, undefined);
+  assert.ok(xssRes.chamados.includes("p'x"), JSON.stringify(xssRes));
+  console.log("OK: dados do Firestore escapados no HTML");
+
   await page.screenshot({ path: process.env.SHOT ?? "/tmp/fin-lanc.png" });
   const relevantes = erros.filter(
     (e) => !/tailwind|Chart|XLSX|emailjs/.test(e),
