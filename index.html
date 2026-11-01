@@ -2232,6 +2232,7 @@ function finImportRenderConciliacao() {
     const box = document.getElementById('fin-import-conciliacao');
     const { linhas, grupos, sugestoes = [], fusoes } = FIN.importBuffer;
     const fundir = finMapaFusao();
+    const abertos = FIN.importBuffer.abertos || new Set();
 
     // Consolida os grupos aplicando as fusoes aceitas.
     const finais = {};
@@ -2281,7 +2282,7 @@ function finImportRenderConciliacao() {
                 <table class="w-full text-sm">
                     <tbody class="divide-y divide-slate-100">
                         ${lista.map(d => `<tr>
-                            <td class="px-4 py-2 text-xs text-slate-700">${sanitize(d.rotulo)}
+                            <td class="px-4 py-2 text-xs text-slate-700"><button type="button" onclick="finImportToggleNome(${jsArg(d.chave)})" class="fin-import-nome text-left hover:text-[#960018]" title="Ver os lançamentos deste nome"><i class="fa-solid fa-chevron-${abertos.has(d.chave) ? 'down' : 'right'} text-[9px] mr-1 text-slate-400"></i>${sanitize(d.rotulo)}</button>
                                 <div class="text-[10px] text-slate-400">${d.qtdParc} lançamento(s) de parceria · ${finBRL(d.totalParc)}${d.qtd > d.qtdParc ? ` · +${d.qtd - d.qtdParc} fora de parceria` : ''}</div>
                                 ${d.variantes.length ? `<div class="text-[10px] text-amber-600">fundido com: ${d.variantes.map(sanitize).join(', ')}</div>` : ''}
                             </td>
@@ -2298,7 +2299,7 @@ function finImportRenderConciliacao() {
                                     ${optParc}
                                 </select>
                             </td>
-                        </tr>`).join('')}
+                        </tr>${abertos.has(d.chave) ? finImportDetalheNome(d.chave, fundir) : ''}`).join('')}
                     </tbody>
                 </table>
             </div>
@@ -2327,6 +2328,35 @@ function finFundirCom(origem, destino) {
         FIN.importBuffer.fusoes[origem] = destino;
     }
     finImportRenderConciliacao();
+}
+
+// Abre/fecha a lista de lancamentos de um nome na conciliacao (conferir fusoes).
+function finImportToggleNome(chave) {
+    const abertos = FIN.importBuffer.abertos || (FIN.importBuffer.abertos = new Set());
+    if (abertos.has(chave)) abertos.delete(chave); else abertos.add(chave);
+    finImportRenderConciliacao();
+}
+
+// Tabela dos lancamentos que caem num nome final, ja com as fusoes aplicadas.
+function finImportDetalheNome(chave, fundir) {
+    const itens = FIN.importBuffer.linhas
+        .filter(l => { const k = finChaveGrupo(l.movimento); return k && fundir(k) === chave; })
+        .sort((a, b) => a.data.localeCompare(b.data));
+    return `<tr class="bg-slate-50/70"><td colspan="3" class="px-4 py-2">
+        <div class="max-h-64 overflow-y-auto custom-scrollbar border border-slate-200 rounded-lg bg-white">
+            <table class="w-full text-[11px]">
+                <thead class="bg-slate-50 text-slate-500 sticky top-0"><tr>
+                    <th class="px-2 py-1 text-left">Data</th><th class="px-2 py-1 text-left">Movimento</th>
+                    <th class="px-2 py-1 text-left">Categoria</th><th class="px-2 py-1 text-right">Valor</th><th class="px-2 py-1 text-left">Aba</th>
+                </tr></thead>
+                <tbody class="divide-y divide-slate-100">${itens.map(l => `<tr class="fin-import-det">
+                    <td class="px-2 py-1 whitespace-nowrap">${finDataBR(l.data)}</td>
+                    <td class="px-2 py-1">${sanitize(l.movimento)}</td>
+                    <td class="px-2 py-1 text-slate-500">${sanitize(l.categoria)}</td>
+                    <td class="px-2 py-1 text-right whitespace-nowrap">${finBRL(l.valor)}</td>
+                    <td class="px-2 py-1 text-slate-400">${sanitize(l.aba)}</td></tr>`).join('')}</tbody>
+            </table>
+        </div></td></tr>`;
 }
 
 function finToggleFusao(curto, longo, aceito) {

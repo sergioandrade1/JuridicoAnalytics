@@ -22,3 +22,6 @@ Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta 
 
 ## Financeiro: Conta Garantida
 Coleção `contaGarantida` (um registro por dia: data, ano, mes, saldo, obs) e `garantiaInicial` em `configFinanceiro/{ano}`. O id do documento é a data (AAAA-MM-DD): salvar na mesma data corrige o registro, mesmo entre usuários. Redução do mês = saldo do mês anterior − saldo do mês (só quando os dois meses têm registro); o saldo do mês alimenta a linha "Saldo pendente conta garantida" do Fluxo. **As regras do Firestore precisam liberar `configFinanceiro` e `contaGarantida`.**
+
+## Financeiro: conciliação da importação
+Antes de gravar, cada nome final da conciliação pode ser aberto (clique no nome) para listar os lançamentos que cairão nele, já com as fusões aplicadas (`finMapaFusao`), incluindo as grafias fundidas. O estado aberto sobrevive às mudanças de fusão. Para várias grafias no mesmo nome, use "juntar em" na conciliação: as caixinhas de sugestão aceitam um destino por nome.
