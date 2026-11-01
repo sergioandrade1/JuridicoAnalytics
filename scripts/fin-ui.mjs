@@ -297,6 +297,47 @@ try {
   assert.deepEqual(resultado.semAba, { visivel: false, pronto: false });
   console.log("OK: Conta Garantida pelo mesmo arquivo");
 
+  // 8c) Conciliacao: clicar no nome mostra os lancamentos dele, inclusive das grafias fundidas
+  const det = await page.evaluate(() => {
+    const cat = FIN_CATEGORIAS_PARCERIA[0];
+    const linha = (data, movimento, valor) => ({
+      data,
+      movimento,
+      categoria: cat,
+      valor,
+      aba: "Lançamentos Janeiro",
+    });
+    const linhas = [
+      linha("2026-01-05", "Mariana Leal", 100),
+      linha("2026-01-03", "Mariana Leal HCP", 50),
+      linha("2026-01-04", "Bruna Aquino", 70),
+    ];
+    const grupos = finImportGrupos(linhas);
+    const chave = (nome) =>
+      Object.keys(grupos).find((k) => grupos[k].rotulo === nome);
+    FIN.importBuffer = { linhas, grupos, sugestoes: [], fusoes: {} };
+    finFundirCom(chave("Mariana Leal HCP"), chave("Mariana Leal"));
+    const qtd = () => document.querySelectorAll(".fin-import-det").length;
+    const botao = () =>
+      [...document.querySelectorAll(".fin-import-nome")].find((b) =>
+        b.textContent.includes("Mariana Leal"),
+      );
+    const fechado = qtd();
+    botao().click();
+    const aberto = [...document.querySelectorAll(".fin-import-det")].map(
+      (tr) => tr.children[1].textContent,
+    );
+    finFundirCom(chave("Bruna Aquino"), ""); // re-render mantem aberto
+    const aposRender = qtd();
+    botao().click();
+    return { fechado, aberto, aposRender, fechadoDeNovo: qtd() };
+  });
+  assert.equal(det.fechado, 0);
+  assert.deepEqual(det.aberto, ["Mariana Leal HCP", "Mariana Leal"]);
+  assert.equal(det.aposRender, 2);
+  assert.equal(det.fechadoDeNovo, 0);
+  console.log("OK: conciliacao mostra os lancamentos de cada nome");
+
   // 9) Importar Conta Garantida: grava com id = data e rodar de novo nao duplica
   const regs = [
     { data: "2026-01-02", ano: 2026, mes: 1, saldo: 178704.82, obs: "" },
