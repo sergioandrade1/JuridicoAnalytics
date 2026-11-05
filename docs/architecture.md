@@ -18,6 +18,8 @@ Guardado em `configFinanceiro/{ano}` no Firestore. Na aba Importar planilha, o s
 Saldo corrente: só Entrada soma e Saída subtrai (Repasse, Despesa Conta PF, Recebimento Repasse e Espécie não movem o saldo).
 
 ## Financeiro: Fluxo de Caixa
+Ordem: lançamentos do mesmo dia seguem a posição da linha na planilha (campo `ordem`, gravado no import; lançado à mão recebe `Date.now()` e vai ao fim do dia). Para lançamentos importados antes desse campo, a aba Importar planilha tem "Aplicar ordem da planilha" (`finImportAplicarOrdem`), que casa data, valor, movimento e conta e grava só `ordem`.
+
 Aba "Lançamentos": todos os lançamentos do ano num só lugar, aberta por mês como as abas da planilha. Uma barra de meses (Jan–Dez e "Ano todo") troca o mês; abre no mês atual (`finMesPadrao`). O resumo do topo é do mês aberto (entradas, saídas e saldo no fim do mês, já contando os meses anteriores). A tabela mostra 200 linhas por vez (`FIN_LANC_PAGINA`, botão "Ver mais") para não pesar.
 
 Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta pelo código (texto antes de " - "); cada linha soma só os tipos que a planilha soma (1.01–1.03 Entrada; 1.04 Espécie; 2.* Saída e Recebimento Repasse). Contas fora do plano ou tipos incompatíveis (ex.: vazio, Despesa Conta PF) aparecem em "Fora do plano / tipo incompatível", fora dos totais. O saldo corrente da lista só move com Entrada e Saída, como na planilha. Clique numa célula abre Lançamentos filtrado por conta e mês.

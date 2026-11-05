@@ -336,6 +336,36 @@ try {
   assert.deepEqual(saldoLido, [0.33, null]);
   console.log("OK: saldo inicial lido da planilha");
 
+  // 8d) Mesmo dia segue a ordem da planilha; "Aplicar ordem" acerta os ja gravados
+  const ordens = await page.evaluate(async () => {
+    window.confirm = () => true;
+    const s = window.__store.lancamentos;
+    Object.keys(s).forEach((k) => delete s[k]);
+    const base = { ano: 2026, mes: 3, data: "2026-03-10", tipo: "Saída" };
+    const cat = "2.05.003 - Tarifas Bancárias";
+    s.o1 = { ...base, valor: 1, categoria: cat, descricao: "B" };
+    s.o2 = { ...base, valor: 2, categoria: cat, descricao: "A" };
+    s.o3 = { ...base, valor: 3, categoria: cat, descricao: "C" };
+    FIN.ano = 2026;
+    await finLoadAno();
+    FIN.importBuffer = {
+      linhas: ["A", "B", "C"].map((m, i) => ({
+        ordem: i,
+        data: "2026-03-10",
+        valor: i === 0 ? 2 : i === 1 ? 1 : 3,
+        movimento: m,
+        categoria: cat,
+      })),
+    };
+    document
+      .getElementById("fin-import-resumo")
+      .insertAdjacentHTML("beforeend", '<div id="fin-import-ordem"></div>');
+    await finImportAplicarOrdem();
+    return FIN.lancamentos.map((l) => l.descricao).join("");
+  });
+  assert.equal(ordens, "ABC");
+  console.log("OK: ordem da planilha no mesmo dia");
+
   // 8c) Conciliacao: clicar no nome mostra os lancamentos dele, inclusive das grafias fundidas
   const det = await page.evaluate(() => {
     const cat = FIN_CATEGORIAS_PARCERIA[0];

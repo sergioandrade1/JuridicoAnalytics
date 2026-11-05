@@ -1149,7 +1149,9 @@ async function finLoadParceiros() {
 async function finLoadLancamentos(ano) {
     const snap = await FIN.db.collection('lancamentos').where('ano', '==', Number(ano)).get();
     FIN.lancamentos = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-    FIN.lancamentos.sort((a, b) => (a.mes - b.mes) || String(a.data).localeCompare(String(b.data)));
+    // Mesmo dia: segue a ordem das linhas da planilha (campo ordem). Sem ordem vai ao fim do dia.
+    const ord = l => (l.ordem != null ? Number(l.ordem) : Number.MAX_SAFE_INTEGER);
+    FIN.lancamentos.sort((a, b) => String(a.data).localeCompare(String(b.data)) || ord(a) - ord(b));
 }
 
 // Saldo inicial do ano. Se as regras do Firestore ainda nao liberam a colecao
@@ -1814,6 +1816,7 @@ async function finSalvarLancamento() {
         } else {
             payload.criadoEm = firebase.firestore.FieldValue.serverTimestamp();
             payload.criadoPor = FIN.user ? FIN.user.email : null;
+            payload.ordem = Date.now(); // lancado a mao entra depois dos importados do mesmo dia
             await FIN.db.collection('lancamentos').add(payload);
         }
         if (ano !== FIN.ano) {
@@ -2148,6 +2151,39 @@ async function finImportUsarSaldo() {
     finMsg('fin-import-saldo', 'Saldo inicial de ' + ano + ' gravado: ' + finBRL(b.saldoInicial) + '.', 'ok');
 }
 
+// Lancamentos ja gravados sem o campo ordem: casa cada um com a linha da planilha
+// (data, valor, movimento, conta) e grava so a ordem. Nao cria nem apaga nada.
+async function finImportAplicarOrdem() {
+    const b = FIN.importBuffer;
+    if (!finRequire() || !b || !b.linhas.length) return;
+    const ano = Number(String(b.linhas[0].data).slice(0, 4));
+    if (ano !== FIN.ano) { finMsg('fin-import-ordem', 'Abra o ano ' + ano + ' no financeiro antes.', 'alerta'); return; }
+    const chave = (data, valor, mov, cat) => [data, Math.abs(Number(valor) || 0).toFixed(2), finNormAscii(mov), finCodigoConta(cat)].join('|');
+    const fila = {};
+    b.linhas.forEach(l => { const k = chave(l.data, l.valor, l.movimento, l.categoria); (fila[k] = fila[k] || []).push(l.ordem); });
+    const mudar = [];
+    let semPar = 0;
+    FIN.lancamentos.forEach(l => {
+        const q = fila[chave(l.data, l.valor, l.descricao, l.categoria)];
+        if (q && q.length) { const o = q.shift(); if (l.ordem !== o) mudar.push([l, o]); } else semPar++;
+    });
+    if (!mudar.length) { finMsg('fin-import-ordem', 'Nada a mudar: a ordem já segue a planilha.', 'ok'); return; }
+    if (!confirm(`Atualizar a ordem de ${mudar.length} lançamentos? Só o campo ordem muda.`)) return;
+    try {
+        for (let i = 0; i < mudar.length; i += 400) {
+            const batch = FIN.db.batch();
+            mudar.slice(i, i + 400).forEach(([l, o]) => batch.update(FIN.db.collection('lancamentos').doc(l.id), { ordem: o }));
+            await batch.commit();
+            finMsg('fin-import-ordem', `Atualizando… ${Math.min(i + 400, mudar.length)} de ${mudar.length}.`, 'alerta');
+        }
+    } catch (e) {
+        finMsg('fin-import-ordem', 'Erro ao gravar: ' + sanitize(e.message), 'erro');
+        return;
+    }
+    await finLoadAno();
+    finMsg('fin-import-ordem', `Ordem aplicada em ${mudar.length} lançamentos.` + (semPar ? ` ${semPar} lançamento(s) sem par na planilha (lançados à mão ou editados) ficam no fim do dia.` : ''), 'ok');
+}
+
 function finImportParse(wb) {
     const linhas = [];
     const ignoradas = [];
@@ -2176,6 +2212,7 @@ function finImportParse(wb) {
             const mov = String(r[cols.mov] != null ? r[cols.mov] : '').trim().replace(/\s+/g, ' ');
             if (!dt || !valor) { if (mov) ignoradas.push(`${nome} linha ${i + 1}`); continue; }
             linhas.push({
+                ordem: linhas.length, // posicao na planilha: desempata lancamentos do mesmo dia
                 aba: nome,
                 mesAba: mesAba,
                 // Divergencia entre o mes da aba e a data digitada na linha.
@@ -2333,7 +2370,10 @@ function finImportRender() {
             ? `<div class="mt-2 text-xs">Saldo inicial do ano na planilha (Fluxo de Caixa Mensal, Janeiro): <b>${finBRL(FIN.importBuffer.saldoInicial)}</b>
                 <button onclick="finImportUsarSaldo()" class="ml-2 py-1 px-3 text-xs font-bold rounded-lg border border-[#960018] text-[#960018] hover:bg-[#960018]/5">Usar como saldo inicial</button>
                 <div id="fin-import-saldo" class="hidden mt-1"></div></div>`
-            : '');
+            : '')
+        + `<div class="mt-2 text-xs">Já importou este arquivo? Acerte a ordem dos lançamentos gravados sem duplicar:
+            <button onclick="finImportAplicarOrdem()" class="ml-2 py-1 px-3 text-xs font-bold rounded-lg border border-[#960018] text-[#960018] hover:bg-[#960018]/5">Aplicar ordem da planilha</button>
+            <div id="fin-import-ordem" class="hidden mt-1"></div></div>`;
     resumo.classList.remove('hidden');
     box.innerHTML = `<div class="text-[11px] text-slate-500">Todos os lançamentos entram no Fluxo de Caixa. Os ${deParceria} de Parceria Jurídica e Honorários Fixos ficam <b>aguardando vínculo</b> no Painel de Parcerias, onde você junta as grafias e escolhe o parceiro.</div>
         <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
@@ -2506,7 +2546,7 @@ async function finImportGravar() {
             lote.forEach(l => {
                 const tipo = FIN_TIPOS.indexOf(l.tipo) > -1 ? l.tipo : '';
                 batch.set(FIN.db.collection('lancamentos').doc(), {
-                    data: l.data, ano: l.ano, mes: l.mes,
+                    data: l.data, ano: l.ano, mes: l.mes, ordem: l.ordem,
                     valor: Math.abs(l.valor),
                     tipo: tipo,
                     categoria: l.categoria || '',
