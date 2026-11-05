@@ -14,7 +14,7 @@
 - Arquivos acima da referencia de 350 linhas.
 
 ## Financeiro: saldo inicial
-Guardado em `configFinanceiro/{ano}` no Firestore. Se as regras ainda não liberam essa coleção, a tela avisa (Lançamentos e Fluxo) e os saldos partem de zero; nada é guardado no navegador, para todos os usuários verem o mesmo número.
+Guardado em `configFinanceiro/{ano}` no Firestore. Na aba Importar planilha, o saldo inicial é lido da aba "Fluxo de Caixa Mensal" (linha SALDO INICIAL, coluna Janeiro; `finImportSaldoInicial`) e o botão "Usar como saldo inicial" grava no ano dos lançamentos. Se as regras ainda não liberam essa coleção, a tela avisa (Lançamentos e Fluxo) e os saldos partem de zero; nada é guardado no navegador, para todos os usuários verem o mesmo número.
 Saldo corrente: só Entrada soma e Saída subtrai (Repasse, Despesa Conta PF, Recebimento Repasse e Espécie não movem o saldo).
 
 ## Financeiro: Fluxo de Caixa

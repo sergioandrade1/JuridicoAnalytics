@@ -2112,6 +2112,42 @@ function finExcelValor(v) {
     return isFinite(n) ? Math.abs(n) : 0;
 }
 
+// Saldo inicial do ano: linha "SALDO INICIAL", coluna Janeiro, da aba
+// "Fluxo de Caixa Mensal". null se a aba ou a celula nao existir.
+function finImportSaldoInicial(wb) {
+    const nome = wb.SheetNames.find(n => finNormAscii(n) === 'fluxo de caixa mensal');
+    if (!nome) return null;
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw: true });
+    const cab = rows.find(r => (r || []).some(c => finNormAscii(c) === 'janeiro'));
+    const col = cab ? cab.findIndex(c => finNormAscii(c) === 'janeiro') : 1;
+    const linha = rows.find(r => finNormAscii((r || [])[0]) === 'saldo inicial');
+    const v = linha ? Number(linha[col]) : NaN;
+    return isFinite(v) ? Math.round(v * 100) / 100 : null;
+}
+
+// Grava o saldo inicial lido da planilha no ano dos lancamentos importados.
+async function finImportUsarSaldo() {
+    const b = FIN.importBuffer;
+    if (!finRequire() || !b || b.saldoInicial == null || !b.linhas.length) return;
+    const ano = Number(String(b.linhas[0].data).slice(0, 4));
+    try {
+        await FIN.db.collection('configFinanceiro').doc(String(ano)).set({
+            saldoInicial: b.saldoInicial,
+            atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+            atualizadoPor: FIN.user ? FIN.user.email : null
+        }, { merge: true });
+    } catch (e) {
+        finMsg('fin-import-saldo', 'Não gravou (' + sanitize(e.message) + '). Libere configFinanceiro nas regras do Firestore.', 'erro');
+        return;
+    }
+    if (ano === FIN.ano) {
+        FIN.saldoInicial = b.saldoInicial;
+        finRenderLancamentos();
+        finRenderFluxo();
+    }
+    finMsg('fin-import-saldo', 'Saldo inicial de ' + ano + ' gravado: ' + finBRL(b.saldoInicial) + '.', 'ok');
+}
+
 function finImportParse(wb) {
     const linhas = [];
     const ignoradas = [];
@@ -2157,7 +2193,7 @@ function finImportParse(wb) {
         }
         abasLidas.push({ nome, mes: mesAba, qtd: lidasNaAba });
     });
-    return { linhas, ignoradas, abasIgnoradas, abasLidas };
+    return { linhas, ignoradas, abasIgnoradas, abasLidas, saldoInicial: finImportSaldoInicial(wb) };
 }
 
 // ---------- AGRUPAMENTO DA CONCILIACAO ----------
@@ -2292,7 +2328,12 @@ function finImportRender() {
         + (abasLidas.length ? `<div class="text-[11px] text-slate-500 mt-1">Abas lidas: ${abasLidas.map(a => `${sanitize(a.nome)} (${a.qtd})`).join(' · ')}</div>` : '')
         + (abasIgnoradas.length ? `<div class="text-[11px] text-slate-400 mt-0.5">Abas fora do padrão de mês, ignoradas: ${abasIgnoradas.map(sanitize).join(' · ')}</div>` : '')
         + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '')
-        + (divergentes ? ` <span class="text-amber-600">${divergentes} linha(s) com data fora do mês da aba — a data da linha prevalece.</span>` : '');
+        + (divergentes ? ` <span class="text-amber-600">${divergentes} linha(s) com data fora do mês da aba — a data da linha prevalece.</span>` : '')
+        + (FIN.importBuffer.saldoInicial != null
+            ? `<div class="mt-2 text-xs">Saldo inicial do ano na planilha (Fluxo de Caixa Mensal, Janeiro): <b>${finBRL(FIN.importBuffer.saldoInicial)}</b>
+                <button onclick="finImportUsarSaldo()" class="ml-2 py-1 px-3 text-xs font-bold rounded-lg border border-[#960018] text-[#960018] hover:bg-[#960018]/5">Usar como saldo inicial</button>
+                <div id="fin-import-saldo" class="hidden mt-1"></div></div>`
+            : '');
     resumo.classList.remove('hidden');
     box.innerHTML = `<div class="text-[11px] text-slate-500">Todos os lançamentos entram no Fluxo de Caixa. Os ${deParceria} de Parceria Jurídica e Honorários Fixos ficam <b>aguardando vínculo</b> no Painel de Parcerias, onde você junta as grafias e escolhe o parceiro.</div>
         <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">

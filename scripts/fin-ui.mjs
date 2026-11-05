@@ -314,6 +314,28 @@ try {
   assert.deepEqual(resultado.semAba, { visivel: false, pronto: false });
   console.log("OK: Conta Garantida pelo mesmo arquivo");
 
+  // 8c) Saldo inicial do ano lido da aba "Fluxo de Caixa Mensal" (Janeiro)
+  const saldoLido = await page.evaluate(() => {
+    const wb = (rows) => ({
+      SheetNames: ["Fluxo de Caixa Mensal"],
+      Sheets: { "Fluxo de Caixa Mensal": { rows } },
+    });
+    return [
+      finImportSaldoInicial(
+        wb([
+          ["Grupos de Contas", "Janeiro", "Fevereiro"],
+          ["SALDO INICIAL", 0.33, 20006.87],
+        ]),
+      ),
+      finImportSaldoInicial({
+        SheetNames: ["Lançamentos Janeiro"],
+        Sheets: {},
+      }),
+    ];
+  });
+  assert.deepEqual(saldoLido, [0.33, null]);
+  console.log("OK: saldo inicial lido da planilha");
+
   // 8c) Conciliacao: clicar no nome mostra os lancamentos dele, inclusive das grafias fundidas
   const det = await page.evaluate(() => {
     const cat = FIN_CATEGORIAS_PARCERIA[0];
