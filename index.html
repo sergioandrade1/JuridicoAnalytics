@@ -670,7 +670,7 @@
                   </div>
                   <div id="fin-meses-bar" class="flex flex-wrap gap-1 p-3 border-b border-slate-100"></div>
                   <div id="fin-saldo-erro" class="hidden m-3"></div>
-                  <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
+                  <div id="fin-lanc-resumo" class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
                   <div class="overflow-x-auto custom-scrollbar max-h-[70vh]">
                       <table class="w-full text-sm text-left text-slate-600">
                           <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100 sticky top-0">
@@ -1591,19 +1591,22 @@ function finRenderLancamentos() {
     const cel = (rot, v, cor) => `<div class="bg-white py-2"><div class="text-[10px] uppercase text-slate-400 font-bold">${rot}</div><div class="font-bold ${cor}">${finBRL(v)}</div></div>`;
     // Com um mes aberto o resumo e do mes (como o topo de cada aba da planilha);
     // o saldo e o do fim do mes, ja contando os meses anteriores.
-    let rot = 'no ano', ent = calc.entradas, sai = calc.saidas, saldoFim = calc.saldoFinal;
+    let rot = 'no ano', ent = calc.entradas, sai = calc.saidas, saldoFim = calc.saldoFinal, saldoIni = Number(FIN.saldoInicial) || 0;
     if (fMes) {
         const doMes = calc.ordem.filter(l => Number(l.mes) === Number(fMes));
         ent = 0; sai = 0;
         doMes.forEach(l => { const v = Math.abs(Number(l.valor) || 0) * finSinal(l.tipo); if (v > 0) ent += v; else sai -= v; });
         const ult = doMes.length ? doMes[doMes.length - 1] : null;
         const antes = calc.ordem.filter(l => Number(l.mes) < Number(fMes));
-        saldoFim = ult ? calc.saldos[ult.id] : (antes.length ? calc.saldos[antes[antes.length - 1].id] : (Number(FIN.saldoInicial) || 0));
+        // saldo inicial do mes = saldo final do mes anterior (como na planilha)
+        if (antes.length) saldoIni = calc.saldos[antes[antes.length - 1].id];
+        saldoFim = ult ? calc.saldos[ult.id] : saldoIni;
         rot = 'em ' + FIN_MESES[Number(fMes) - 1];
     }
     document.getElementById('fin-lanc-resumo').innerHTML =
-        cel('Entradas ' + rot, ent, 'text-emerald-600') + cel('Saídas ' + rot, sai, 'text-red-600')
-        + cel(fMes ? 'Saldo no fim de ' + FIN_MESES[Number(fMes) - 1] : 'Saldo atual', saldoFim, saldoFim < 0 ? 'text-red-600' : 'text-slate-700');
+        cel(fMes ? 'Saldo inicial de ' + FIN_MESES[Number(fMes) - 1] : 'Saldo inicial do ano', saldoIni, saldoIni < 0 ? 'text-red-600' : 'text-slate-700')
+        + cel('Entradas ' + rot, ent, 'text-emerald-600') + cel('Saídas ' + rot, sai, 'text-red-600')
+        + cel(fMes ? 'Saldo final de ' + FIN_MESES[Number(fMes) - 1] : 'Saldo atual', saldoFim, saldoFim < 0 ? 'text-red-600' : 'text-slate-700');
 
     if (!lista.length) {
         body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento neste período com esses filtros.</td></tr>`;
