@@ -41,7 +41,8 @@ const FAKE_FIREBASE = `
       const ops = [];
       return {
         set: (ref, d, o) => ops.push([ref, d, o]),
-        commit: async () => { for (const [r, d, o] of ops) await r.set(d, o); },
+        delete: (ref) => ops.push([ref, null, 'del']),
+        commit: async () => { for (const [r, d, o] of ops) await (o === 'del' ? r.delete() : r.set(d, o)); },
       };
     },
   };
@@ -337,6 +338,41 @@ try {
   assert.equal(det.aposRender, 2);
   assert.equal(det.fechadoDeNovo, 0);
   console.log("OK: conciliacao mostra os lancamentos de cada nome");
+
+  // 8b) Remover import: apaga so os lancamentos do lote, manual fica
+  page.once("dialog", (d) => d.accept());
+  const lote = await page.evaluate(async () => {
+    const col = window.__store.lancamentos;
+    col.a1 = {
+      data: "2026-01-05",
+      ano: 2026,
+      mes: 1,
+      valor: 10,
+      importId: "imp_1",
+    };
+    col.a2 = {
+      data: "2026-01-06",
+      ano: 2026,
+      mes: 1,
+      valor: 20,
+      importId: "imp_1",
+    };
+    col.m1 = { data: "2026-01-07", ano: 2026, mes: 1, valor: 30 };
+    await finLoadAno();
+    const antes = document
+      .getElementById("fin-import-lotes")
+      .textContent.includes("imp_1");
+    await finRemoverLote("imp_1");
+    return {
+      antes,
+      restam: Object.keys(col).filter(
+        (k) => k === "a1" || k === "a2" || k === "m1",
+      ),
+    };
+  });
+  assert.equal(lote.antes, true);
+  assert.deepEqual(lote.restam, ["m1"]);
+  console.log("OK: remover import apaga so o lote");
 
   // 9) Importar Conta Garantida: grava com id = data e rodar de novo nao duplica
   const regs = [
