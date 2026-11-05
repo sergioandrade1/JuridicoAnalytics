@@ -25,3 +25,7 @@ Coleção `contaGarantida` (um registro por dia: data, ano, mes, saldo, obs) e `
 
 ## Financeiro: conciliação da importação
 Antes de gravar, cada nome final da conciliação pode ser aberto (clique no nome) para listar os lançamentos que cairão nele, já com as fusões aplicadas (`finMapaFusao`), incluindo as grafias fundidas. O estado aberto sobrevive às mudanças de fusão. Para várias grafias no mesmo nome, use "juntar em" na conciliação: as caixinhas de sugestão aceitam um destino por nome.
+
+As decisões de fusão (juntar em / caixinhas) ficam em `localStorage` (`fin-fusoes-v1`) e são reaplicadas nos próximos imports; "não fundir" também é lembrado.
+
+Após gravar, a aba Importar planilha lista os imports do ano carregado (`importId`) com "Remover import" (`finRemoverLote`): apaga só os lançamentos do lote, em batches de 400; parceiros criados no import permanecem. Depende de as regras do Firestore permitirem `delete` em `lancamentos`.

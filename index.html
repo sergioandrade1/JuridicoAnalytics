@@ -749,6 +749,7 @@
                   <div id="fin-import-resumo" class="hidden text-sm text-slate-600"></div>
                   <div id="fin-import-conciliacao" class="hidden space-y-3"></div>
                   <div id="fin-import-status" class="hidden text-xs rounded-lg p-3 border"></div>
+                  <div id="fin-import-lotes" class="hidden border-t border-slate-100 pt-4 space-y-2"></div>
                   <div class="hidden border-t border-slate-100 pt-4 space-y-3" id="fin-gar-import">
                       <h4 class="font-bold text-[#4A0404] text-sm">Importar Conta Garantida</h4>
                       <p class="text-[11px] text-slate-500">Encontrada no mesmo arquivo: aba "Controle Conta Garantida" (saldo devedor inicial e saldo de cada dia). Pode gravar de novo sem duplicar: cada data vira um registro só.</p>
@@ -1196,6 +1197,7 @@ async function finLoadAno() {
         finRenderLancamentos();
         finRenderFluxo();
         finRenderGarantia();
+        finRenderLotes();
     } catch (e) {
         console.error(e);
         alert('Erro ao carregar dados do Firestore: ' + e.message);
@@ -2462,6 +2464,46 @@ async function finImportGravar() {
     } catch (e) {
         console.error(e);
         finMsg('fin-import-status', 'Erro na importação: ' + e.message, 'erro');
+    }
+}
+
+// Lotes ja gravados (do ano carregado) com opcao de remover o import inteiro.
+function finRenderLotes() {
+    const box = document.getElementById('fin-import-lotes');
+    if (!box) return;
+    const lotes = {};
+    FIN.lancamentos.forEach(l => {
+        if (!l.importId) return;
+        const x = lotes[l.importId] || (lotes[l.importId] = { qtd: 0, comParc: 0 });
+        x.qtd++; if (l.parceiroId) x.comParc++;
+    });
+    const ids = Object.keys(lotes).sort().reverse();
+    box.classList.toggle('hidden', !ids.length);
+    box.innerHTML = ids.length ? `<h4 class="font-bold text-[#4A0404] text-sm">Imports gravados em ${FIN.ano}</h4>`
+        + ids.map(id => `<div class="flex items-center justify-between gap-3 text-xs text-slate-600 border border-slate-200 rounded-lg px-3 py-2">
+            <span><code>${sanitize(id)}</code> · ${lotes[id].qtd} lançamentos (${lotes[id].comParc} com parceiro)</span>
+            <button onclick="finRemoverLote(${jsArg(id)})" class="py-1 px-3 border border-red-300 text-red-700 hover:bg-red-50 font-bold rounded-lg">Remover import</button>
+        </div>`).join('') : '';
+}
+
+// Apaga todos os lancamentos de um import (nao apaga parceiros criados nele).
+async function finRemoverLote(importId) {
+    if (!finRequire()) return;
+    const alvo = FIN.lancamentos.filter(l => l.importId === importId);
+    if (!alvo.length) return;
+    if (!confirm(`Remover o import ${importId}? Serão apagados ${alvo.length} lançamentos. Os parceiros criados nele continuam cadastrados. Não dá para desfazer.`)) return;
+    finMsg('fin-import-status', 'Removendo… não feche a aba.', 'alerta');
+    try {
+        for (let i = 0; i < alvo.length; i += 400) {
+            const batch = FIN.db.batch();
+            alvo.slice(i, i + 400).forEach(l => batch.delete(FIN.db.collection('lancamentos').doc(l.id)));
+            await batch.commit();
+        }
+        finMsg('fin-import-status', `Import removido: ${alvo.length} lançamentos apagados.`, 'ok');
+        await finLoadAno();
+    } catch (e) {
+        console.error(e);
+        finMsg('fin-import-status', 'Erro ao remover: ' + e.message, 'erro');
     }
 }
 
