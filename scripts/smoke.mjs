@@ -1,11 +1,13 @@
 // Smoke test local: sobe o site em porta livre e confere que a pagina carrega.
 // Requer rede para as bibliotecas de CDN. Uso: npm run smoke
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { chromium } from "playwright-core";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const types = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -26,8 +28,15 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const url = `http://127.0.0.1:${server.address().port}/`;
+// CHROMIUM_PATH vence; senao usa o primeiro Chromium/Chrome/Edge que existir.
+const candidatos = [
+  "/opt/pw-browsers/chromium",
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+];
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium",
+  executablePath: process.env.CHROMIUM_PATH ?? candidatos.find(existsSync),
 });
 const errors = [];
 try {

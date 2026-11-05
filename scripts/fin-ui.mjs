@@ -1,13 +1,14 @@
 // Teste de interface do modulo financeiro com Firebase/CDNs falsos (sem rede e
 // sem tocar no Firestore real). Uso: npm run test:ui
 import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { extname, join } from "node:path";
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const types = {
   ".html": "text/html",
   ".js": "text/javascript",
