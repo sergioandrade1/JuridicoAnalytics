@@ -662,10 +662,10 @@
                       <h3 class="font-bold text-[#4A0404] text-base mr-auto">Lançamentos</h3>
                       <label class="fin-label !mb-0">Saldo inicial do ano</label>
                       <input type="number" step="0.01" id="fin-saldo-inicial" onchange="finSalvarSaldoInicial()" class="fin-input-sm w-32 text-right" placeholder="0,00">
-                      <select id="fin-filtro-mes" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
-                      <select id="fin-filtro-parceiro" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
-                      <select id="fin-filtro-tipo" onchange="finRenderLancamentos()" class="fin-input-sm"></select>
-                      <select id="fin-filtro-conta" onchange="finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
+                      <select id="fin-filtro-mes" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-parceiro" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-tipo" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-conta" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
                       <button id="fin-limpar-filtros" onclick="finLimparFiltros()" class="hidden py-1.5 px-3 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 text-amber-800">Limpar filtros ✕</button>
                   </div>
                   <div id="fin-saldo-erro" class="hidden m-3"></div>
@@ -993,7 +993,9 @@ const FIN_CATEGORIAS_PARCERIA = ["2.02.001 - Parceria Jurídica","2.02.002 - Hon
 const FIN_LIMITE_PADRAO = 50000;
 const FIN_MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
+const FIN_LANC_PAGINA = 200;
 const FIN = {
+    lancLimite: FIN_LANC_PAGINA,
     db: null, auth: null, user: null, ready: false,
     ano: new Date().getFullYear(),
     saldoInicial: 0,    // saldo inicial do ano (configFinanceiro/{ano})
@@ -1591,7 +1593,10 @@ function finRenderLancamentos() {
         body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
         return;
     }
-    body.innerHTML = lista.map(l => {
+    // Tabela grande trava a troca de aba: mostra so as primeiras linhas e deixa "ver mais".
+    const total = lista.length;
+    const visiveis = lista.slice(0, FIN.lancLimite);
+    body.innerHTML = visiveis.map(l => {
         const p = finParceiroById(l.parceiroId);
         const sinal = finSinal(l.tipo);
         const saldo = calc.saldos[l.id];
@@ -1607,7 +1612,14 @@ function finRenderLancamentos() {
                 <button onclick="finExcluirLancamento(${jsArg(l.id)})" class="text-slate-400 hover:text-red-500 px-1"><i class="fa-solid fa-trash text-xs"></i></button>
             </td>
         </tr>`;
-    }).join('');
+    }).join('') + (total > visiveis.length
+        ? `<tr><td colspan="7" class="px-4 py-3 text-center text-xs text-slate-500">Mostrando ${visiveis.length} de ${total}. <button onclick="finMaisLancamentos()" class="font-bold text-[#960018] hover:underline">Ver mais ${Math.min(FIN_LANC_PAGINA, total - visiveis.length)}</button> · use os filtros para achar um lançamento.</td></tr>`
+        : '');
+}
+
+function finMaisLancamentos() {
+    FIN.lancLimite += FIN_LANC_PAGINA;
+    finRenderLancamentos();
 }
 
 // manterData: apos salvar, a data fica para o proximo lancamento do mesmo dia.
