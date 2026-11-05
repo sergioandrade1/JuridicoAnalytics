@@ -152,6 +152,17 @@ try {
       .evaluate((e) => e.classList.contains("hidden"))),
   );
 
+  // A aba abre no mes atual (sem janeiro); o chip Jan mostra os lancamentos.
+  assert.equal(await page.locator("#fin-meses-bar button").count(), 13);
+  assert.equal(
+    await page
+      .locator("#fin-lanc-body tr")
+      .filter({ hasText: "Dislub" })
+      .count(),
+    0,
+  );
+  await page.locator("#fin-meses-bar button", { hasText: /^Jan$/ }).click();
+
   const linhas = await page.locator("#fin-lanc-body tr").allInnerTexts();
   const saldos = linhas.map((l) =>
     l.split("\t").filter(Boolean).slice(-1)[0].trim(),
@@ -258,6 +269,9 @@ try {
       .evaluate((e) => e.classList.contains("hidden"))),
   );
   await page.evaluate(() => finLimparFiltros());
+  // limpar filtros mantem o mes aberto; "Ano todo" mostra tudo
+  assert.equal(await page.locator("#fin-lanc-body tr").count(), 2);
+  await page.locator("#fin-meses-bar button", { hasText: "Ano todo" }).click();
   assert.equal(await page.locator("#fin-lanc-body tr").count(), 4);
 
   // 7) Editar e trocar a conta nao sobrescreve o tipo ja gravado

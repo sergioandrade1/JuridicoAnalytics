@@ -18,6 +18,8 @@ Guardado em `configFinanceiro/{ano}` no Firestore. Se as regras ainda não liber
 Saldo corrente: só Entrada soma e Saída subtrai (Repasse, Despesa Conta PF, Recebimento Repasse e Espécie não movem o saldo).
 
 ## Financeiro: Fluxo de Caixa
+Aba "Lançamentos": todos os lançamentos do ano num só lugar, aberta por mês como as abas da planilha. Uma barra de meses (Jan–Dez e "Ano todo") troca o mês; abre no mês atual (`finMesPadrao`). O resumo do topo é do mês aberto (entradas, saídas e saldo no fim do mês, já contando os meses anteriores). A tabela mostra 200 linhas por vez (`FIN_LANC_PAGINA`, botão "Ver mais") para não pesar.
+
 Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta pelo código (texto antes de " - "); cada linha soma só os tipos que a planilha soma (1.01–1.03 Entrada; 1.04 Espécie; 2.* Saída e Recebimento Repasse). Contas fora do plano ou tipos incompatíveis (ex.: vazio, Despesa Conta PF) aparecem em "Fora do plano / tipo incompatível", fora dos totais. O saldo corrente da lista só move com Entrada e Saída, como na planilha. Clique numa célula abre Lançamentos filtrado por conta e mês.
 
 ## Financeiro: Conta Garantida

@@ -662,12 +662,13 @@
                       <h3 class="font-bold text-[#4A0404] text-base mr-auto">Lançamentos</h3>
                       <label class="fin-label !mb-0">Saldo inicial do ano</label>
                       <input type="number" step="0.01" id="fin-saldo-inicial" onchange="finSalvarSaldoInicial()" class="fin-input-sm w-32 text-right" placeholder="0,00">
-                      <select id="fin-filtro-mes" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
+                      <select id="fin-filtro-mes" class="hidden"></select>
                       <select id="fin-filtro-parceiro" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-tipo" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm"></select>
                       <select id="fin-filtro-conta" onchange="FIN.lancLimite = FIN_LANC_PAGINA; finRenderLancamentos()" class="fin-input-sm max-w-[14rem]"></select>
                       <button id="fin-limpar-filtros" onclick="finLimparFiltros()" class="hidden py-1.5 px-3 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 text-amber-800">Limpar filtros ✕</button>
                   </div>
+                  <div id="fin-meses-bar" class="flex flex-wrap gap-1 p-3 border-b border-slate-100"></div>
                   <div id="fin-saldo-erro" class="hidden m-3"></div>
                   <div id="fin-lanc-resumo" class="grid grid-cols-3 gap-px bg-slate-100 text-center text-xs border-b border-slate-100"></div>
                   <div class="overflow-x-auto custom-scrollbar max-h-[70vh]">
@@ -1212,6 +1213,7 @@ async function finLoadAno() {
 
 function finSetAno(ano) {
     FIN.ano = Number(ano);
+    const fm = document.getElementById('fin-filtro-mes'); if (fm) fm.value = String(finMesPadrao());
     ['fin-painel-ano', 'fin-fluxo-ano'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ano; });
     finLoadAno();
 }
@@ -1543,7 +1545,8 @@ function finPopulaSelects() {
     }
     const fMes = document.getElementById('fin-filtro-mes');
     if (fMes && !fMes.options.length) {
-        fMes.innerHTML = `<option value="">Todos os meses</option>` + FIN_MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+        fMes.innerHTML = `<option value="">Ano todo</option>` + FIN_MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+        fMes.value = String(finMesPadrao());
     }
     const fTipo = document.getElementById('fin-filtro-tipo');
     if (fTipo && !fTipo.options.length) {
@@ -1583,14 +1586,27 @@ function finRenderLancamentos() {
         return true;
     });
 
-    document.getElementById('fin-limpar-filtros').classList.toggle('hidden', !(fMes || fParc || fTipo || fConta));
+    document.getElementById('fin-limpar-filtros').classList.toggle('hidden', !(fParc || fTipo || fConta));
+    finRenderMesesBar(fMes);
     const cel = (rot, v, cor) => `<div class="bg-white py-2"><div class="text-[10px] uppercase text-slate-400 font-bold">${rot}</div><div class="font-bold ${cor}">${finBRL(v)}</div></div>`;
+    // Com um mes aberto o resumo e do mes (como o topo de cada aba da planilha);
+    // o saldo e o do fim do mes, ja contando os meses anteriores.
+    let rot = 'no ano', ent = calc.entradas, sai = calc.saidas, saldoFim = calc.saldoFinal;
+    if (fMes) {
+        const doMes = calc.ordem.filter(l => Number(l.mes) === Number(fMes));
+        ent = 0; sai = 0;
+        doMes.forEach(l => { const v = Math.abs(Number(l.valor) || 0) * finSinal(l.tipo); if (v > 0) ent += v; else sai -= v; });
+        const ult = doMes.length ? doMes[doMes.length - 1] : null;
+        const antes = calc.ordem.filter(l => Number(l.mes) < Number(fMes));
+        saldoFim = ult ? calc.saldos[ult.id] : (antes.length ? calc.saldos[antes[antes.length - 1].id] : (Number(FIN.saldoInicial) || 0));
+        rot = 'em ' + FIN_MESES[Number(fMes) - 1];
+    }
     document.getElementById('fin-lanc-resumo').innerHTML =
-        cel('Entradas no ano', calc.entradas, 'text-emerald-600') + cel('Saídas no ano', calc.saidas, 'text-red-600')
-        + cel('Saldo atual', calc.saldoFinal, calc.saldoFinal < 0 ? 'text-red-600' : 'text-slate-700');
+        cel('Entradas ' + rot, ent, 'text-emerald-600') + cel('Saídas ' + rot, sai, 'text-red-600')
+        + cel(fMes ? 'Saldo no fim de ' + FIN_MESES[Number(fMes) - 1] : 'Saldo atual', saldoFim, saldoFim < 0 ? 'text-red-600' : 'text-slate-700');
 
     if (!lista.length) {
-        body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento em ${FIN.ano} com esses filtros.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400 text-sm">Nenhum lançamento neste período com esses filtros.</td></tr>`;
         return;
     }
     // Tabela grande trava a troca de aba: mostra so as primeiras linhas e deixa "ver mais".
@@ -1617,6 +1633,25 @@ function finRenderLancamentos() {
         : '');
 }
 
+// Mes aberto por padrao: o atual se o ano mostrado e o ano corrente, senao janeiro.
+function finMesPadrao() {
+    const hoje = new Date();
+    return FIN.ano === hoje.getFullYear() ? hoje.getMonth() + 1 : 1;
+}
+
+function finRenderMesesBar(atual) {
+    const bar = document.getElementById('fin-meses-bar');
+    if (!bar) return;
+    const chip = (v, rot) => `<button onclick="finSelMes('${v}')" class="px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${String(atual) === String(v) ? 'bg-[#960018] border-[#960018] text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">${rot}</button>`;
+    bar.innerHTML = FIN_MESES.map((m, i) => chip(i + 1, m)).join('') + chip('', 'Ano todo');
+}
+
+function finSelMes(m) {
+    document.getElementById('fin-filtro-mes').value = m;
+    FIN.lancLimite = FIN_LANC_PAGINA;
+    finRenderLancamentos();
+}
+
 function finMaisLancamentos() {
     FIN.lancLimite += FIN_LANC_PAGINA;
     finRenderLancamentos();
@@ -1624,7 +1659,7 @@ function finMaisLancamentos() {
 
 // manterData: apos salvar, a data fica para o proximo lancamento do mesmo dia.
 function finLimparFiltros() {
-    ['fin-filtro-mes', 'fin-filtro-parceiro', 'fin-filtro-tipo', 'fin-filtro-conta'].forEach(id => { document.getElementById(id).value = ''; });
+    ['fin-filtro-parceiro', 'fin-filtro-tipo', 'fin-filtro-conta'].forEach(id => { document.getElementById(id).value = ''; });
     finRenderLancamentos();
 }
 
