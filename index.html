@@ -532,6 +532,9 @@
                   </div>
               </div>
               <div id="fin-painel-alertas" class="hidden px-4 py-2 bg-red-50 border-b border-red-100 text-xs text-red-700 font-medium"></div>
+              <div id="fin-painel-pendentes" class="hidden px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-800 font-medium flex flex-wrap items-center justify-between gap-3"></div>
+              <div id="fin-vinculo" class="hidden space-y-3 p-4 border-b border-slate-100"></div>
+              <div id="fin-vinculo-status" class="hidden text-xs rounded-lg p-3 mx-4 my-2 border"></div>
               <div class="overflow-x-auto custom-scrollbar">
                   <table class="text-sm text-left text-slate-600 fin-painel-table">
                       <thead id="fin-painel-head" class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100"></thead>
@@ -747,7 +750,7 @@
                       <p class="text-sm font-medium text-slate-600">Selecione Fluxo_de_Caixa_2026.xlsx</p>
                   </div>
                   <div id="fin-import-resumo" class="hidden text-sm text-slate-600"></div>
-                  <div id="fin-import-conciliacao" class="hidden space-y-3"></div>
+                  <div id="fin-import-confirmar" class="hidden space-y-3"></div>
                   <div id="fin-import-status" class="hidden text-xs rounded-lg p-3 border"></div>
                   <div id="fin-import-lotes" class="hidden border-t border-slate-100 pt-4 space-y-2"></div>
                   <div class="hidden border-t border-slate-100 pt-4 space-y-3" id="fin-gar-import">
@@ -998,7 +1001,8 @@ const FIN = {
     garantia: [],       // registros de contaGarantida do ano
     parceiros: [],      // todos os parceiros
     lancamentos: [],    // apenas do ano selecionado
-    importBuffer: null
+    importBuffer: null,
+    vinculo: null
 };
 
 // ---------- helpers ----------
@@ -1334,6 +1338,7 @@ function finRenderPainel() {
     const body = document.getElementById('fin-painel-body');
     const foot = document.getElementById('fin-painel-foot');
     if (!head) return;
+    finRenderPendentes();
 
     head.innerHTML = `<tr>
         <th class="px-4 py-3 sticky left-0 bg-slate-50 z-10 min-w-[200px]">Parceiro</th>
@@ -2190,7 +2195,7 @@ function finSugestoesFusao(grupos) {
 // sem isso a primeira apontaria para um grupo que ja foi fundido. O limite de
 // voltas protege contra um ciclo criado por marcacoes contraditorias.
 function finMapaFusao() {
-    const fusoes = (FIN.importBuffer && FIN.importBuffer.fusoes) || {};
+    const fusoes = (FIN.vinculo && FIN.vinculo.fusoes) || {};
     return chave => {
         let atual = chave;
         for (let i = 0; i < 10 && fusoes[atual] && fusoes[atual] !== atual; i++) atual = fusoes[atual];
@@ -2198,50 +2203,60 @@ function finMapaFusao() {
     };
 }
 
+// Monta o buffer de vinculo (nomes -> parceiros) sobre uma lista de linhas
+// {movimento, categoria, valor, data, aba}. Roda no Painel de Parcerias, sobre
+// lancamentos ja gravados e ainda sem parceiro.
+function finVinculoIniciar(linhas) {
+    const grupos = finImportGrupos(linhas);
+    // Sugestoes de fusao vem marcadas por padrao: o caso comum e serem a
+    // mesma pessoa, e deixar separado quebra o controle de limite.
+    const buf = FIN.vinculo = { linhas, grupos, fusoes: {}, sugestoes: finSugestoesFusao(grupos) };
+    buf.sugestoes.forEach(sug => {
+        if (!sug.ambiguo) buf.fusoes[sug.curto] = sug.longo;
+    });
+    // A fusao decidida vence a automatica; desfaz o sentido oposto, que formaria ciclo
+    // ("ricardo" -> "ricardo mota" contra "ricardo mota" -> "ricardo") e nao juntaria ninguem.
+    const fixar = (de, para) => { if (buf.fusoes[para] === de) delete buf.fusoes[para]; buf.fusoes[de] = para; };
+    // As correcoes conhecidas vencem a sugestao automatica.
+    Object.keys(FIN_CORRECOES_NOME).forEach(k => {
+        if (grupos[k] && grupos[FIN_CORRECOES_NOME[k]]) fixar(k, FIN_CORRECOES_NOME[k]);
+    });
+    // Decisoes manuais de imports anteriores vencem tudo (uma vez so por nome).
+    const salvas = finFusoesSalvas();
+    Object.keys(salvas).forEach(k => {
+        if (!grupos[k]) return;
+        if (salvas[k] === '' ) delete buf.fusoes[k];
+        else if (grupos[salvas[k]]) fixar(k, salvas[k]);
+    });
+}
+
+// O import so confere e grava: nao pede decisao de nome. O vinculo com parceiro
+// e feito depois, no Painel de Parcerias.
 function finImportRender() {
     const { linhas, ignoradas, abasLidas = [], abasIgnoradas = [] } = FIN.importBuffer;
     const resumo = document.getElementById('fin-import-resumo');
-
-    const grupos = finImportGrupos(linhas);
-    FIN.importBuffer.grupos = grupos;
-    if (!FIN.importBuffer.fusoes) {
-        // Sugestoes de fusao vem marcadas por padrao: o caso comum e serem a
-        // mesma pessoa, e deixar separado quebra o controle de limite.
-        FIN.importBuffer.fusoes = {};
-        FIN.importBuffer.sugestoes = finSugestoesFusao(grupos);
-        FIN.importBuffer.sugestoes.forEach(sug => {
-            if (!sug.ambiguo) FIN.importBuffer.fusoes[sug.curto] = sug.longo;
-        });
-        // As correcoes conhecidas vencem a sugestao automatica.
-        Object.keys(FIN_CORRECOES_NOME).forEach(k => {
-            if (grupos[k] && grupos[FIN_CORRECOES_NOME[k]]) FIN.importBuffer.fusoes[k] = FIN_CORRECOES_NOME[k];
-        });
-        // Decisoes manuais de imports anteriores vencem tudo (uma vez so por nome).
-        const salvas = finFusoesSalvas();
-        Object.keys(salvas).forEach(k => {
-            if (!grupos[k]) return;
-            if (salvas[k] === '' ) delete FIN.importBuffer.fusoes[k];
-            else if (grupos[salvas[k]]) FIN.importBuffer.fusoes[k] = salvas[k];
-        });
-    }
-
-    const comParceria = Object.values(grupos).filter(g => g.qtdParc > 0).length;
+    const box = document.getElementById('fin-import-confirmar');
     const divergentes = linhas.filter(l => l.alerta).length;
+    const deParceria = linhas.filter(l => finCategoriaDeParceria(l.categoria)).length;
     resumo.innerHTML = `<b>${linhas.length}</b> lançamentos lidos em ${abasLidas.length} aba(s) de mês.`
         + (abasLidas.length ? `<div class="text-[11px] text-slate-500 mt-1">Abas lidas: ${abasLidas.map(a => `${sanitize(a.nome)} (${a.qtd})`).join(' · ')}</div>` : '')
         + (abasIgnoradas.length ? `<div class="text-[11px] text-slate-400 mt-0.5">Abas fora do padrão de mês, ignoradas: ${abasIgnoradas.map(sanitize).join(' · ')}</div>` : '')
         + (ignoradas.length ? ` <span class="text-amber-600">${ignoradas.length} linha(s) sem data ou valor foram ignoradas.</span>` : '')
         + (divergentes ? ` <span class="text-amber-600">${divergentes} linha(s) com data fora do mês da aba — a data da linha prevalece.</span>` : '');
     resumo.classList.remove('hidden');
-    finImportRenderConciliacao();
+    box.innerHTML = `<div class="text-[11px] text-slate-500">Todos os lançamentos entram no Fluxo de Caixa. Os ${deParceria} de Parceria Jurídica e Honorários Fixos ficam <b>aguardando vínculo</b> no Painel de Parcerias, onde você junta as grafias e escolhe o parceiro.</div>
+        <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+            <i class="fa-solid fa-database"></i> Gravar ${linhas.length} lançamentos no Firestore
+        </button>`;
+    box.classList.remove('hidden');
 }
 
 // Separada do resumo porque e re-renderizada a cada fusao aceita/desfeita.
 function finImportRenderConciliacao() {
-    const box = document.getElementById('fin-import-conciliacao');
-    const { linhas, grupos, sugestoes = [], fusoes } = FIN.importBuffer;
+    const box = document.getElementById('fin-vinculo');
+    const { linhas, grupos, sugestoes = [], fusoes } = FIN.vinculo;
     const fundir = finMapaFusao();
-    const abertos = FIN.importBuffer.abertos || new Set();
+    const abertos = FIN.vinculo.abertos || new Set();
 
     // Consolida os grupos aplicando as fusoes aceitas.
     const finais = {};
@@ -2256,8 +2271,6 @@ function finImportRenderConciliacao() {
     // So entram na decisao os grupos que tem lancamento de parceria: o resto
     // nunca afeta o Painel de Parcerias.
     const lista = Object.values(finais).filter(g => g.qtdParc > 0).sort((a, b) => b.totalParc - a.totalParc);
-    const semParceria = Object.values(finais).length - lista.length;
-    const linhasSemParceria = linhas.filter(l => !finCategoriaDeParceria(l.categoria)).length;
 
     const optParc = FIN.parceiros.map(p => `<option value="${sanitize(p.id)}">${sanitize(p.nome)}</option>`).join('');
 
@@ -2284,8 +2297,8 @@ function finImportRenderConciliacao() {
     box.innerHTML = blocoFusao + `
         <div class="border border-slate-200 rounded-xl overflow-hidden">
             <div class="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-200 flex justify-between items-center gap-3">
-                <span>Conciliação — ${lista.length} nome(s) com lançamento de parceria <span class="font-normal text-slate-400">· use "juntar em" para unir grafias em qualquer direção</span></span>
-                <span class="font-normal text-slate-400">${semParceria} nome(s) fora das categorias de parceria não precisam de vínculo</span>
+                <span>Vincular parceiros — ${lista.length} nome(s) <span class="font-normal text-slate-400">· use "juntar em" para unir grafias em qualquer direção</span></span>
+                <button onclick="finFecharVinculo()" class="font-normal text-slate-400 hover:text-slate-600">Fechar</button>
             </div>
             <div class="max-h-[420px] overflow-y-auto custom-scrollbar">
                 <table class="w-full text-sm">
@@ -2313,9 +2326,8 @@ function finImportRenderConciliacao() {
                 </table>
             </div>
         </div>
-        <div class="text-[11px] text-slate-500">Os ${linhasSemParceria} lançamentos fora das categorias de parceria também são gravados, apenas sem vínculo com parceiro.</div>
-        <button onclick="finImportGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-            <i class="fa-solid fa-database"></i> Gravar ${linhas.length} lançamentos no Firestore
+        <button onclick="finVinculoGravar()" class="w-full py-3 bg-[#960018] hover:bg-[#7d0014] text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+            <i class="fa-solid fa-link"></i> Vincular ${linhas.length} lançamentos aos parceiros
         </button>`;
     box.classList.remove('hidden');
 
@@ -2340,25 +2352,25 @@ function finLembrarFusao(origem, destino) {
 
 function finFundirCom(origem, destino) {
     finLembrarFusao(origem, destino || '');
-    if (!destino) delete FIN.importBuffer.fusoes[origem];
+    if (!destino) delete FIN.vinculo.fusoes[origem];
     else {
         // Impede A->B junto de B->A, que criaria um ciclo.
-        if (FIN.importBuffer.fusoes[destino] === origem) delete FIN.importBuffer.fusoes[destino];
-        FIN.importBuffer.fusoes[origem] = destino;
+        if (FIN.vinculo.fusoes[destino] === origem) delete FIN.vinculo.fusoes[destino];
+        FIN.vinculo.fusoes[origem] = destino;
     }
     finImportRenderConciliacao();
 }
 
 // Abre/fecha a lista de lancamentos de um nome na conciliacao (conferir fusoes).
 function finImportToggleNome(chave) {
-    const abertos = FIN.importBuffer.abertos || (FIN.importBuffer.abertos = new Set());
+    const abertos = FIN.vinculo.abertos || (FIN.vinculo.abertos = new Set());
     if (abertos.has(chave)) abertos.delete(chave); else abertos.add(chave);
     finImportRenderConciliacao();
 }
 
 // Tabela dos lancamentos que caem num nome final, ja com as fusoes aplicadas.
 function finImportDetalheNome(chave, fundir) {
-    const itens = FIN.importBuffer.linhas
+    const itens = FIN.vinculo.linhas
         .filter(l => { const k = finChaveGrupo(l.movimento); return k && fundir(k) === chave; })
         .sort((a, b) => a.data.localeCompare(b.data));
     return `<tr class="bg-slate-50/70"><td colspan="3" class="px-4 py-2">
@@ -2380,72 +2392,35 @@ function finImportDetalheNome(chave, fundir) {
 
 function finToggleFusao(curto, longo, aceito) {
     finLembrarFusao(curto, aceito ? longo : '');
-    if (aceito) FIN.importBuffer.fusoes[curto] = longo;
-    else delete FIN.importBuffer.fusoes[curto];
+    if (aceito) FIN.vinculo.fusoes[curto] = longo;
+    else delete FIN.vinculo.fusoes[curto];
     finImportRenderConciliacao();
 }
 
+// Grava tudo, sem parceiro: o vinculo e decidido depois, no Painel de Parcerias.
 async function finImportGravar() {
     if (!finRequire()) return;
     if (!FIN.importBuffer) return;
     const { linhas } = FIN.importBuffer;
-    const mapa = {};
-    document.querySelectorAll('.fin-map').forEach(sel => { mapa[sel.dataset.chave] = sel.value; });
-
-    // Rotulo do parceiro a criar = nome-base mais completo do grupo.
-    const rotulos = {};
-    Object.keys(mapa).forEach(k => {
-        const g = FIN.importBuffer.grupos[k];
-        rotulos[k] = g ? g.rotulo : k;
-    });
-    const fundir = finMapaFusao();
 
     if (!confirm(`Gravar ${linhas.length} lançamentos? Esta operação é única — rode a migração uma vez só.`)) return;
-    const status = document.getElementById('fin-import-status');
     finMsg('fin-import-status', 'Gravando… não feche a aba.', 'alerta');
 
     try {
         const importId = 'imp_' + Date.now();
-        // Cria os parceiros novos primeiro, para o lançamento já nascer com a FK.
-        for (const chave of Object.keys(mapa)) {
-            if (mapa[chave] !== '__novo__') continue;
-            const nome = rotulos[chave];
-            const ref = await FIN.db.collection('parceiros').add({
-                nome: nome, nomeNorm: finNorm(nome), ativo: true, limiteMensal: FIN_LIMITE_PADRAO,
-                criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-                criadoPor: FIN.user ? FIN.user.email : null
-            });
-            mapa[chave] = ref.id;
-        }
-        await finLoadParceiros();
-
-        // Parceiro de cada linha: so categoria de parceria recebe vinculo. As
-        // regras do Firestore validam o parceiro de cada gravacao e limitam as
-        // consultas por lote, entao o lote tambem limita parceiros distintos.
-        const parceiroDaLinha = l => (finCategoriaDeParceria(l.categoria)
-            ? (mapa[fundir(finChaveGrupo(l.movimento))] || null) : null);
-        // Agrupa por parceiro antes de dividir: lotes grandes, poucos parceiros em cada.
-        const agrupadas = linhas.slice().sort((a, b) => String(parceiroDaLinha(a) || '').localeCompare(String(parceiroDaLinha(b) || '')));
-        const lotes = finLotesPorParceiro(agrupadas, parceiroDaLinha, 400, 12);
+        const lotes = finLotesPorParceiro(linhas, () => null, 400, 12);
         let gravadas = 0;
         for (const lote of lotes) {
             const batch = FIN.db.batch();
             lote.forEach(l => {
-                // So lancamento de categoria de parceria recebe vinculo: um
-                // aluguel pago a "Bruna" nao pode entrar no limite dela.
-                const pid = finCategoriaDeParceria(l.categoria)
-                    ? (mapa[fundir(finChaveGrupo(l.movimento))] || null)
-                    : null;
-                const p = pid ? finParceiroById(pid) : null;
                 const tipo = FIN_TIPOS.indexOf(l.tipo) > -1 ? l.tipo : '';
-                const cat = FIN_CATEGORIAS.indexOf(l.categoria) > -1 ? l.categoria : (l.categoria || '');
                 batch.set(FIN.db.collection('lancamentos').doc(), {
                     data: l.data, ano: l.ano, mes: l.mes,
                     valor: Math.abs(l.valor),
                     tipo: tipo,
-                    categoria: cat,
-                    parceiroId: pid,
-                    parceiroNome: p ? p.nome : null,
+                    categoria: l.categoria || '',
+                    parceiroId: null,
+                    parceiroNome: null,
                     descricao: l.movimento,
                     origem: 'import',
                     importId: importId,
@@ -2457,13 +2432,100 @@ async function finImportGravar() {
             gravadas += lote.length;
             finMsg('fin-import-status', `Gravando… ${gravadas} de ${linhas.length}.`, 'alerta');
         }
-        finMsg('fin-import-status', `Pronto. ${linhas.length} lançamentos gravados (lote <code>${importId}</code>).`, 'ok');
-        document.getElementById('fin-import-conciliacao').classList.add('hidden');
+        finMsg('fin-import-status', `Pronto. ${linhas.length} lançamentos gravados (lote <code>${importId}</code>). Os de parceria e honorário aguardam vínculo no Painel de Parcerias.`, 'ok');
+        document.getElementById('fin-import-confirmar').classList.add('hidden');
         FIN.importBuffer = null;
         await finLoadAno();
     } catch (e) {
         console.error(e);
         finMsg('fin-import-status', 'Erro na importação: ' + e.message, 'erro');
+    }
+}
+
+// ---------- VINCULO NO PAINEL DE PARCERIAS ----------
+// Lancamentos de parceria/honorario sem parceiro (do ano carregado).
+function finPendentesDeVinculo() {
+    return FIN.lancamentos
+        .filter(l => !l.parceiroId && finCategoriaDeParceria(l.categoria))
+        .map(l => ({
+            id: l.id, data: l.data, movimento: l.descricao || '', categoria: l.categoria,
+            valor: Number(l.valor) || 0, aba: l.importId || 'manual'
+        }));
+}
+
+function finRenderPendentes() {
+    const el = document.getElementById('fin-painel-pendentes');
+    if (!el) return;
+    const pend = finPendentesDeVinculo();
+    el.classList.toggle('hidden', !pend.length);
+    if (!pend.length) { el.innerHTML = ''; return; }
+    const total = pend.reduce((a, p) => a + p.valor, 0);
+    el.innerHTML = `<span><i class="fa-solid fa-link-slash mr-2"></i><b>${pend.length}</b> lançamento(s) de parceria/honorário aguardando vínculo (${finBRL(total)}) — ainda não entram na distribuição.</span>
+        <button onclick="finAbrirVinculo()" class="py-1 px-3 bg-[#960018] text-white font-bold rounded-lg hover:bg-[#7d0014]">Vincular parceiros</button>`;
+}
+
+function finAbrirVinculo() {
+    finVinculoIniciar(finPendentesDeVinculo());
+    finImportRenderConciliacao();
+}
+
+function finFecharVinculo() {
+    FIN.vinculo = null;
+    const box = document.getElementById('fin-vinculo');
+    box.classList.add('hidden');
+    box.innerHTML = '';
+}
+
+async function finVinculoGravar() {
+    if (!finRequire()) return;
+    if (!FIN.vinculo) return;
+    const { linhas, grupos } = FIN.vinculo;
+    const mapa = {};
+    document.querySelectorAll('#fin-vinculo .fin-map').forEach(sel => { mapa[sel.dataset.chave] = sel.value; });
+    const fundir = finMapaFusao();
+    const alvoDe = l => mapa[fundir(finChaveGrupo(l.movimento))] || '';
+    const vincular = linhas.filter(l => alvoDe(l));
+    if (!vincular.length) { finMsg('fin-vinculo-status', 'Escolha ao menos um parceiro.', 'erro'); return; }
+    if (!confirm(`Vincular ${vincular.length} lançamentos aos parceiros escolhidos?`)) return;
+    finMsg('fin-vinculo-status', 'Vinculando… não feche a aba.', 'alerta');
+
+    try {
+        // Cria os parceiros novos antes, para o lancamento ja apontar para o id.
+        for (const chave of Object.keys(mapa)) {
+            if (mapa[chave] !== '__novo__') continue;
+            const nome = grupos[chave] ? grupos[chave].rotulo : chave;
+            const ref = await FIN.db.collection('parceiros').add({
+                nome: nome, nomeNorm: finNorm(nome), ativo: true, limiteMensal: FIN_LIMITE_PADRAO,
+                criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                criadoPor: FIN.user ? FIN.user.email : null
+            });
+            mapa[chave] = ref.id;
+        }
+        await finLoadParceiros();
+
+        const lotes = finLotesPorParceiro(vincular, alvoDe, 400, 12);
+        let feitas = 0;
+        for (const lote of lotes) {
+            const batch = FIN.db.batch();
+            lote.forEach(l => {
+                const p = finParceiroById(alvoDe(l));
+                batch.update(FIN.db.collection('lancamentos').doc(l.id), {
+                    parceiroId: p.id,
+                    parceiroNome: p.nome,
+                    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp(),
+                    atualizadoPor: FIN.user ? FIN.user.email : null
+                });
+            });
+            await batch.commit();
+            feitas += lote.length;
+            finMsg('fin-vinculo-status', `Vinculando… ${feitas} de ${vincular.length}.`, 'alerta');
+        }
+        finFecharVinculo();
+        await finLoadAno();
+        finMsg('fin-vinculo-status', `Pronto. ${feitas} lançamentos vinculados.`, 'ok');
+    } catch (e) {
+        console.error(e);
+        finMsg('fin-vinculo-status', 'Erro ao vincular: ' + e.message, 'erro');
     }
 }
 

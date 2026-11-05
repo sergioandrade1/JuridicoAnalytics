@@ -23,9 +23,13 @@ Aba "Fluxo de Caixa": conta × mês calculado de `finFluxoMensal`. Casa a conta 
 ## Financeiro: Conta Garantida
 Coleção `contaGarantida` (um registro por dia: data, ano, mes, saldo, obs) e `garantiaInicial` em `configFinanceiro/{ano}`. O id do documento é a data (AAAA-MM-DD): salvar na mesma data corrige o registro, mesmo entre usuários. Redução do mês = saldo do mês anterior − saldo do mês (só quando os dois meses têm registro); o saldo do mês alimenta a linha "Saldo pendente conta garantida" do Fluxo. **As regras do Firestore precisam liberar `configFinanceiro` e `contaGarantida`.**
 
-## Financeiro: conciliação da importação
-Antes de gravar, cada nome final da conciliação pode ser aberto (clique no nome) para listar os lançamentos que cairão nele, já com as fusões aplicadas (`finMapaFusao`), incluindo as grafias fundidas. O estado aberto sobrevive às mudanças de fusão. Para várias grafias no mesmo nome, use "juntar em" na conciliação: as caixinhas de sugestão aceitam um destino por nome.
+## Financeiro: importação e vínculo de parceiros
+Cada tela resolve a sua parte, de forma independente. A aba Importar planilha só confere e grava: **todas** as linhas entram em `lancamentos` com `parceiroId: null`, sem pedir decisão de nome, e alimentam o Fluxo de Caixa e a aba Lançamentos.
 
-As decisões de fusão (juntar em / caixinhas) ficam em `localStorage` (`fin-fusoes-v1`) e são reaplicadas nos próximos imports; "não fundir" também é lembrado.
+Os lançamentos de Parceria Jurídica (2.02.001) e Honorários Fixos (2.02.002) sem parceiro ficam **aguardando vínculo**: o Painel de Parcerias mostra um aviso com a quantidade e o valor, e o botão "Vincular parceiros" abre a conciliação (`finAbrirVinculo`, buffer `FIN.vinculo`) sobre esses lançamentos do ano carregado. Lá cada nome pode ser aberto (clique) para listar seus lançamentos, já com as fusões aplicadas (`finMapaFusao`). Para várias grafias no mesmo nome, use "juntar em"; as caixinhas de sugestão aceitam um destino por nome. Ao confirmar (`finVinculoGravar`), cria os parceiros novos e atualiza `parceiroId`/`parceiroNome` em lotes. Só entram na distribuição os lançamentos já vinculados. Lançamentos de outras categorias nunca precisam de parceiro.
+
+**As regras do Firestore precisam aceitar `lancamentos` de parceria com `parceiroId` nulo (import) e `update` de `parceiroId`/`parceiroNome` (vínculo).** As regras não estão no repositório; confira no console do Firebase antes de usar em produção.
+
+As decisões de fusão (juntar em / caixinhas) ficam em `localStorage` (`fin-fusoes-v1`) e são reaplicadas nos próximos vínculos; "não fundir" também é lembrado.
 
 Após gravar, a aba Importar planilha lista os imports do ano carregado (`importId`) com "Remover import" (`finRemoverLote`): apaga só os lançamentos do lote, em batches de 400; parceiros criados no import permanecem. Depende de as regras do Firestore permitirem `delete` em `lancamentos`.

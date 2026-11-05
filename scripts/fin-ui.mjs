@@ -43,7 +43,8 @@ const FAKE_FIREBASE = `
       return {
         set: (ref, d, o) => ops.push([ref, d, o]),
         delete: (ref) => ops.push([ref, null, 'del']),
-        commit: async () => { for (const [r, d, o] of ops) await (o === 'del' ? r.delete() : r.set(d, o)); },
+        update: (ref, d) => ops.push([ref, d, 'upd']),
+        commit: async () => { for (const [r, d, o] of ops) await (o === 'del' ? r.delete() : o === 'upd' ? r.update(d) : r.set(d, o)); },
       };
     },
   };
@@ -317,7 +318,7 @@ try {
     const grupos = finImportGrupos(linhas);
     const chave = (nome) =>
       Object.keys(grupos).find((k) => grupos[k].rotulo === nome);
-    FIN.importBuffer = { linhas, grupos, sugestoes: [], fusoes: {} };
+    FIN.vinculo = { linhas, grupos, sugestoes: [], fusoes: {} };
     finFundirCom(chave("Mariana Leal HCP"), chave("Mariana Leal"));
     const qtd = () => document.querySelectorAll(".fin-import-det").length;
     const botao = () =>
@@ -340,8 +341,83 @@ try {
   assert.equal(det.fechadoDeNovo, 0);
   console.log("OK: conciliacao mostra os lancamentos de cada nome");
 
+  // 8d) Import grava TUDO sem parceiro; o Painel avisa e o vinculo e feito la
+  page.on("dialog", (d) => d.accept());
+  const imp = await page.evaluate(async () => {
+    const col = window.__store.lancamentos;
+    Object.keys(col).forEach((k) => delete col[k]);
+    const cat = FIN_CATEGORIAS_PARCERIA[0];
+    const mk = (data, movimento, categoria, valor) => ({
+      aba: "Lançamentos Janeiro",
+      mesAba: 1,
+      alerta: null,
+      data,
+      ano: 2026,
+      mes: 1,
+      tipo: "Saída",
+      movimento,
+      categoria,
+      valor,
+    });
+    FIN.importBuffer = {
+      linhas: [
+        mk("2026-01-05", "Mariana Leal", cat, 100),
+        mk("2026-01-06", "Mariana Leal HCP", cat, 50),
+        mk("2026-01-07", "Ricardo Oliveira (tapete)", "2.01.003 - Aluguel", 30),
+      ],
+      ignoradas: [],
+      abasLidas: [],
+      abasIgnoradas: [],
+    };
+    finImportRender();
+    const semDecisao = document.querySelectorAll(
+      "#fin-import-confirmar .fin-map",
+    ).length;
+    await finImportGravar();
+    const docs = Object.values(col);
+    return {
+      semDecisao,
+      total: docs.length,
+      comParceiro: docs.filter((d) => d.parceiroId).length,
+      aviso: document.getElementById("fin-painel-pendentes").textContent,
+    };
+  });
+  assert.equal(imp.semDecisao, 0);
+  assert.equal(imp.total, 3);
+  assert.equal(imp.comParceiro, 0);
+  assert.match(imp.aviso, /2 lançamento/);
+  console.log("OK: import grava tudo sem parceiro e o Painel avisa");
+
+  const vinc = await page.evaluate(async () => {
+    const col = window.__store.lancamentos;
+    finAbrirVinculo();
+    const nomes = [
+      ...document.querySelectorAll("#fin-vinculo .fin-import-nome"),
+    ].map((b) => b.textContent.trim());
+    await finVinculoGravar();
+    const docs = Object.values(col);
+    return {
+      nomes,
+      parceiros: [
+        ...new Set(docs.filter((d) => d.parceiroId).map((d) => d.parceiroId)),
+      ].length,
+      vinculados: docs.filter((d) => d.parceiroId).length,
+      tapete: docs.find((d) => /tapete/.test(d.descricao)).parceiroId,
+      avisoOculto: document
+        .getElementById("fin-painel-pendentes")
+        .classList.contains("hidden"),
+    };
+  });
+  assert.equal(vinc.nomes.length, 1); // grafias juntas; o tapete nem aparece
+  assert.equal(vinc.parceiros, 1);
+  assert.equal(vinc.vinculados, 2);
+  assert.equal(vinc.tapete, null);
+  assert.equal(vinc.avisoOculto, true);
+  console.log(
+    "OK: vinculo no Painel junta grafias e deixa o resto sem parceiro",
+  );
+
   // 8b) Remover import: apaga so os lancamentos do lote, manual fica
-  page.once("dialog", (d) => d.accept());
   const lote = await page.evaluate(async () => {
     const col = window.__store.lancamentos;
     col.a1 = {
