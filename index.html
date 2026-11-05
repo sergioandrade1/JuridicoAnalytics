@@ -2214,6 +2214,13 @@ function finImportRender() {
         Object.keys(FIN_CORRECOES_NOME).forEach(k => {
             if (grupos[k] && grupos[FIN_CORRECOES_NOME[k]]) FIN.importBuffer.fusoes[k] = FIN_CORRECOES_NOME[k];
         });
+        // Decisoes manuais de imports anteriores vencem tudo (uma vez so por nome).
+        const salvas = finFusoesSalvas();
+        Object.keys(salvas).forEach(k => {
+            if (!grupos[k]) return;
+            if (salvas[k] === '' ) delete FIN.importBuffer.fusoes[k];
+            else if (grupos[salvas[k]]) FIN.importBuffer.fusoes[k] = salvas[k];
+        });
     }
 
     const comParceria = Object.values(grupos).filter(g => g.qtdParc > 0).length;
@@ -2320,7 +2327,17 @@ function finImportRenderConciliacao() {
 
 // Fusao manual em qualquer direcao (inclusive nome completo dentro do curto,
 // ex. "Ricardo Mota" -> "Ricardo"), que a sugestao automatica nao cobre.
+const FIN_FUSOES_KEY = 'fin-fusoes-v1';
+function finFusoesSalvas() {
+    try { return JSON.parse(localStorage.getItem(FIN_FUSOES_KEY)) || {}; } catch (e) { return {}; }
+}
+// destino '' = "decidi nao fundir"; lembrado para nao voltar a sugestao.
+function finLembrarFusao(origem, destino) {
+    try { const m = finFusoesSalvas(); m[origem] = destino; localStorage.setItem(FIN_FUSOES_KEY, JSON.stringify(m)); } catch (e) { /* sem storage: so nao lembra */ }
+}
+
 function finFundirCom(origem, destino) {
+    finLembrarFusao(origem, destino || '');
     if (!destino) delete FIN.importBuffer.fusoes[origem];
     else {
         // Impede A->B junto de B->A, que criaria um ciclo.
@@ -2360,6 +2377,7 @@ function finImportDetalheNome(chave, fundir) {
 }
 
 function finToggleFusao(curto, longo, aceito) {
+    finLembrarFusao(curto, aceito ? longo : '');
     if (aceito) FIN.importBuffer.fusoes[curto] = longo;
     else delete FIN.importBuffer.fusoes[curto];
     finImportRenderConciliacao();
